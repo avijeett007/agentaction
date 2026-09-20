@@ -1,0 +1,39 @@
+AgentAction
+Copyright 2026 Avijit Sarkar
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+---
+
+What the licence covers, plainly
+--------------------------------
+
+Everything in this repository — the approval server, the SDK and the phone app
+— is Apache-2.0. You may run it, change it, and use it commercially, including
+inside your own product, with no fee and no separate agreement.
+
+What is not in this repository
+------------------------------
+
+A managed, hosted edition is offered separately: we run the server, handle
+provisioning and quotas, and provide support and an SLA. Anything built only
+for that service — the operator console, billing, account provisioning, SSO
+integrations — is not part of this repository and is not covered by this
+licence.
+
+To be clear about a thing that is easy to misread: the multi-tenant *data
+model* in this repository (tenants, subjects, per-tenant keys and branding) is
+Apache-2.0 like the rest of it, and you may run as many tenants as you like on
+your own installation. The commercial offering is the hosted service around it,
+not permission to use that code.
+
+Trade marks
+-----------
+
+The Apache-2.0 licence does not grant rights to the AgentAction name or logo.
+Forks and derived works are welcome, under a different name and mark.
+
+Contact
+-------
+
+Commercial, enterprise or unusual deployments: https://sonti.io

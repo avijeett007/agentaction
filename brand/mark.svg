@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="AgentAction">
+  <!--
+    The gate.
+
+    A closed square is the agent held. The opening at the top right is the only
+    way out, and the stroke that leaves through it is the approval: nothing
+    passes until a person lets it. It reads at 20px because it is two shapes and
+    one gap — no gradients, no detail that disappears when it is small.
+  -->
+  <defs>
+    <linearGradient id="aaEdge" x1="16" y1="18" x2="112" y2="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7FA6FF"/>
+      <stop offset="1" stop-color="#4C7BFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- The enclosure, opened at the top right. -->
+  <path d="M86 20H40a20 20 0 0 0-20 20v48a20 20 0 0 0 20 20h48a20 20 0 0 0 20-20V60"
+        fill="none" stroke="url(#aaEdge)" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- The approval: begins inside, leaves through the gap. -->
+  <path d="M46 66l18 18L110 24"
+        fill="none" stroke="#2FD98B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

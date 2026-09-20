@@ -1,0 +1,16 @@
+{
+  "name": "agentaction",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Human approval for AI agent tool calls: approval server, SDK and mobile app.",
+  "workspaces": [
+    "server",
+    "sdk"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "license": "UNLICENSED"
+}

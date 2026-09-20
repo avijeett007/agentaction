@@ -1,0 +1,236 @@
+// AgentAction approval server.
+//
+// Local development and tests run on SQLite; production runs on Postgres.
+// `npm run db:postgres` rewrites the datasource block below into
+// prisma/schema.postgres.prisma. Keep every field portable between the two:
+// no native enums, no scalar lists, no Postgres-only types.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// An integrator brand. One per customer-facing brand, so the phone can show the
+/// agency's name, logo and colour after pairing.
+model Tenant {
+  id             String   @id
+  name           String
+  /// Shown in the app after pairing.
+  brandName      String
+  brandLogoUrl   String?
+  brandColor     String   @default("#3B82F6")
+  /// sha256 of the integrator API key. The key itself is shown once, never stored.
+  apiKeyHash     String   @unique
+  /// HMAC secret used to sign outbound webhooks to the integrator.
+  webhookSecret  String
+  webhookUrl     String?
+  /// Most devices one subject of this tenant may pair (1..5).
+  deviceCap      Int      @default(5)
+  /// Default lifetime of an approval request, in seconds (300..3600).
+  requestTtlSec  Int      @default(600)
+  disabled       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subjects Subject[]
+  policies Policy[]
+
+  @@map("tenants")
+}
+
+/// An end user account inside a tenant — one of the integrator's own users.
+model Subject {
+  id         String   @id
+  tenantId   String
+  /// The integrator's own id for this account. Unique per tenant.
+  externalId String
+  /// Shown on the pairing confirmation screen.
+  label      String
+  email      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  devices  Device[]
+  pairings PairingCode[]
+  requests ApprovalRequest[]
+  policies Policy[]
+  grants   Grant[]
+
+  @@unique([tenantId, externalId])
+  @@map("subjects")
+}
+
+/// A paired phone.
+model Device {
+  id             String    @id
+  subjectId      String
+  label          String
+  platform       String
+  model          String?
+  /// Ed25519 public key (base64url, raw 32 bytes) that signs the app's API calls.
+  devicePubKey   String
+  /// Ed25519 public key (base64url, raw 32 bytes) that signs approve/deny decisions.
+  approvalPubKey String
+  /// Expo push token. Null once the token is rejected as dead.
+  pushToken      String?
+  pushFailedAt   DateTime?
+  revokedAt      DateTime?
+  lastSeenAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  decisions Decision[]
+
+  @@index([subjectId, revokedAt])
+  @@map("devices")
+}
+
+/// A single-use, short-lived code that pairs one phone.
+model PairingCode {
+  id         String    @id
+  subjectId  String
+  /// sha256 of the pairing secret shown in the QR code.
+  secretHash String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([subjectId])
+  @@map("pairing_codes")
+}
+
+/// One thing waiting to be approved.
+model ApprovalRequest {
+  id         String @id
+  subjectId  String
+  /// Which agent asked (the name of the API token used against the MCP gateway).
+  actorLabel String
+  /// "<app>/<tool>", e.g. "gmail/GMAIL_SEND_EMAIL".
+  resourceKey String
+  /// One line for the notification and the top of the approval screen.
+  title      String
+  /// JSON array of {label, value, sensitive} shown as plain text in the app.
+  fieldsJson String
+  /// sha256 of the integrator's canonical arguments. Proves nothing changed.
+  argsHash   String
+  /// 4 digits, shown to the agent and on the phone so the user can match them.
+  code       String
+  /// pending | approved | denied | expired
+  status     String   @default("pending")
+  expiresAt  DateTime
+  decidedAt  DateTime?
+  /// once | window — whether approval also created a grant.
+  decisionScope String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  subject    Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  decisions  Decision[]
+  deliveries WebhookDelivery[]
+
+  @@index([subjectId, status])
+  @@index([status, expiresAt])
+  @@map("approval_requests")
+}
+
+/// The signed answer from one device. The first one wins.
+model Decision {
+  id        String   @id
+  requestId String
+  deviceId  String
+  /// approved | denied
+  decision  String
+  /// once | window
+  scope     String   @default("once")
+  /// Base64url Ed25519 signature over the canonical decision string.
+  signature String
+  signedAt  DateTime
+  createdAt DateTime @default(now())
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  device  Device          @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId])
+  @@index([deviceId])
+  @@map("decisions")
+}
+
+/// Which tools need approval. Tenant-level rows (subjectId null) are the
+/// agency's defaults and locks; subject rows are the customer's own choice.
+model Policy {
+  id          String   @id
+  tenantId    String
+  subjectId   String?
+  /// "<app>/<tool>" or "<app>/*".
+  resourceKey String
+  enabled     Boolean  @default(true)
+  /// Tenant rows only: the customer cannot switch this off.
+  locked      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subject Subject? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, subjectId, resourceKey])
+  @@index([subjectId])
+  @@map("policies")
+}
+
+/// "Allow this tool for 15 minutes", created by approving with scope=window.
+model Grant {
+  id          String   @id
+  subjectId   String
+  resourceKey String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([subjectId, resourceKey, expiresAt])
+  @@map("grants")
+}
+
+/// Outbound decision webhooks, with their retries.
+model WebhookDelivery {
+  id          String    @id
+  requestId   String
+  url         String
+  attempts    Int       @default(0)
+  /// pending | delivered | failed
+  status      String    @default("pending")
+  lastError   String?
+  nextAttempt DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttempt])
+  @@map("webhook_deliveries")
+}
+
+/// Append-only trail: every pairing, decision, policy change and delivery.
+model AuditEvent {
+  id         String   @id
+  tenantId   String
+  subjectId  String?
+  /// e.g. device.paired, request.created, request.decided, policy.updated
+  type       String
+  /// JSON blob with the details of this event.
+  dataJson   String
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([subjectId, createdAt])
+  @@map("audit_events")
+}

@@ -1,0 +1,18 @@
+node_modules/
+dist/
+coverage/
+.env
+*.db
+*.db-journal
+.expo/
+
+# Push credentials — never in a public repository.
+google-services.json
+**/google-services.json
+GoogleService-Info.plist
+**/GoogleService-Info.plist
+*service-account*.json
+*-firebase-adminsdk-*.json
+
+# Which EAS account this checkout builds against — an installation detail.
+eas.local.json
