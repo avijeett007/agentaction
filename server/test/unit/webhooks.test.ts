@@ -116,7 +116,28 @@ describe('deliverPending', () => {
       resourceKey: 'gmail/GMAIL_SEND_EMAIL',
       status: 'approved',
       decisionScope: 'once',
+      // An approval for this one call, said as a null rather than as a zero.
+      decisionWindowSec: null,
       argsHash: ARGS_HASH,
+    });
+  });
+
+  it('tells the integrator how long a granted window lasts', async () => {
+    const { approval } = await decidedRequest();
+    await prisma.approvalRequest.update({
+      where: { id: approval.id },
+      data: { decisionScope: 'window', decisionWindowSec: 900 },
+    });
+    await queueDecisionWebhook(approval.id);
+    fetchMock.mockResolvedValue(new Response('', { status: 200 }));
+
+    await deliverPending(new Date());
+
+    // Without the number, "window" only says "and stop asking" — the caller
+    // cannot tell whether that means five minutes or the rest of the day.
+    expect(JSON.parse(lastCall().init.body)).toMatchObject({
+      decisionScope: 'window',
+      decisionWindowSec: 900,
     });
   });
 
@@ -179,6 +200,32 @@ describe('deliverPending', () => {
     expect(delivery).toMatchObject({ status: 'failed', attempts: 6, nextAttempt: null });
     // Six tries, then nothing: the two extra sweeps found no due row.
     expect(fetchMock).toHaveBeenCalledTimes(6);
+  });
+
+  it('delivers once when two server instances sweep at the same moment', async () => {
+    const { approval } = await decidedRequest();
+    await queueDecisionWebhook(approval.id);
+
+    const [a, b] = await Promise.all([deliverPending(), deliverPending()]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(a.delivered + b.delivered).toBe(1);
+  });
+
+  it('retries a delivery whose sender died mid-send, once the claim lapses', async () => {
+    const { approval } = await decidedRequest();
+    const id = await queueDecisionWebhook(approval.id);
+    // Another instance claimed it and never came back: its lease is still running.
+    await prisma.webhookDelivery.update({
+      where: { id: id! },
+      data: { nextAttempt: new Date(Date.now() + 30_000) },
+    });
+
+    await deliverPending();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await deliverPending(new Date(Date.now() + 61_000));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('never makes a real network call in this suite', () => {

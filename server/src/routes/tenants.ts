@@ -20,9 +20,34 @@ const createTenantSchema = z.object({
   webhookUrl: z.string().url().max(2000).optional(),
   deviceCap: z.number().int().min(1).max(5).optional(),
   requestTtlSec: z.number().int().min(300).max(3600).optional(),
+  /**
+   * The longest "approve for a while" window this agency will accept. Any
+   * whole number of seconds up to the operator's own ceiling: a bank can cap
+   * its customers at 300, and 0 switches windows off altogether so every
+   * approval covers exactly one call.
+   */
+  maxGrantWindowSec: z.number().int().min(0).max(config.maxGrantWindowSec).optional(),
 });
 
-const updateTenantSchema = createTenantSchema.partial().omit({ name: true });
+/** What a tenant created without a colour gets, and what `brandColor: null` restores. */
+const DEFAULT_BRAND_COLOR = '#3B82F6';
+
+/**
+ * A field left out is left alone. `null` clears the logo and puts the default
+ * colour back, so an agency that removes its branding can say so; without it
+ * the phone would keep showing the old logo for good.
+ */
+const updateTenantSchema = createTenantSchema
+  .partial()
+  .omit({ name: true })
+  .extend({
+    brandLogoUrl: z.string().url().max(2000).nullable().optional(),
+    brandColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/, 'brandColor must be a #rrggbb colour')
+      .nullable()
+      .optional(),
+  });
 
 const subjectSchema = z.object({
   externalId: z.string().min(1).max(200),
@@ -53,12 +78,13 @@ tenantsRouter.post('/', async (req, res, next) => {
         name: body.name,
         brandName: body.brandName,
         brandLogoUrl: body.brandLogoUrl ?? null,
-        brandColor: body.brandColor ?? '#3B82F6',
+        brandColor: body.brandColor ?? DEFAULT_BRAND_COLOR,
         webhookUrl: body.webhookUrl ?? null,
         webhookSecret: randomSecret(),
         apiKeyHash: hash,
         deviceCap: body.deviceCap ?? config.maxDeviceCap,
         requestTtlSec: body.requestTtlSec ?? 600,
+        maxGrantWindowSec: body.maxGrantWindowSec ?? config.defaultMaxGrantWindowSec,
       },
     });
 
@@ -88,10 +114,11 @@ tenantsRouter.patch('/me', integratorAuth, async (req, res, next) => {
       data: {
         brandName: body.brandName,
         brandLogoUrl: body.brandLogoUrl,
-        brandColor: body.brandColor,
+        brandColor: body.brandColor === null ? DEFAULT_BRAND_COLOR : body.brandColor,
         webhookUrl: body.webhookUrl,
         deviceCap: body.deviceCap,
         requestTtlSec: body.requestTtlSec,
+        maxGrantWindowSec: body.maxGrantWindowSec,
       },
     });
     await recordAudit({ tenantId: tenant.id, type: 'tenant.updated', data: { ...body } });
@@ -154,6 +181,7 @@ function publicTenant(tenant: {
   webhookUrl: string | null;
   deviceCap: number;
   requestTtlSec: number;
+  maxGrantWindowSec: number;
 }) {
   return {
     id: tenant.id,
@@ -164,6 +192,7 @@ function publicTenant(tenant: {
     webhookUrl: tenant.webhookUrl,
     deviceCap: tenant.deviceCap,
     requestTtlSec: tenant.requestTtlSec,
+    maxGrantWindowSec: tenant.maxGrantWindowSec,
   };
 }
 

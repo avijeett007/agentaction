@@ -135,12 +135,14 @@ describe('pair a phone, park a call, approve it', () => {
     const body = {
       decision: 'approved' as const,
       scope: 'once' as const,
+      windowSec: 0,
       signedAt,
       signature: approvalKeys.sign(
         decisionMessage({
           requestId,
           decision: 'approved',
           scope: 'once',
+          windowSec: 0,
           argsHash: storedHash,
           signedAt,
         }),
@@ -236,12 +238,14 @@ describe('pair a phone, park a call, approve it', () => {
     const body = {
       decision: 'approved' as const,
       scope: 'once' as const,
+      windowSec: 0,
       signedAt,
       signature: theirs.approvalKeys.sign(
         decisionMessage({
           requestId,
           decision: 'approved',
           scope: 'once',
+          windowSec: 0,
           argsHash: 'b'.repeat(64),
           signedAt,
         }),

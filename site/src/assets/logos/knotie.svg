@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <!-- Velvet-like gradient -->
+        <linearGradient id="velvetGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#1E40AF"/>  <!-- darker blue -->
+            <stop offset="40%" style="stop-color:#3B82F6"/> <!-- blue-500 -->
+            <stop offset="60%" style="stop-color:#60A5FA"/> <!-- blue-400 -->
+            <stop offset="100%" style="stop-color:#1E40AF"/> <!-- darker blue -->
+        </linearGradient>
+        
+        <!-- Soft glow effect -->
+        <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur"/>
+            <feFlood flood-color="#60A5FA" flood-opacity="0.3" result="color"/>
+            <feComposite in="color" in2="blur" operator="in" result="glow"/>
+            <feMerge>
+                <feMergeNode in="glow"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+        
+        <!-- Velvet texture effect -->
+        <filter id="velvetTexture">
+            <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" result="noise"/>
+            <feColorMatrix type="saturate" values="0.1" in="noise" result="noise2"/>
+            <feBlend in="SourceGraphic" in2="noise2" mode="overlay" result="blend"/>
+            <feComposite in="blend" in2="SourceGraphic" operator="in"/>
+        </filter>
+    </defs>
+    
+    <!-- Main K with velvet effect -->
+    <g transform="translate(96, 64)">
+        <path d="M60,50 L60,350 L120,350 L120,230 L280,350 L360,350 L180,200 L360,50 L280,50 L120,170 L120,50 Z" 
+              fill="url(#velvetGradient)"
+              filter="url(#softGlow)"
+              style="transform-origin: center; transform: scale(0.9);"
+        />
+    </g>
+</svg>

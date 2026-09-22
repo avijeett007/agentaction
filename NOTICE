@@ -1,5 +1,5 @@
 AgentAction
-Copyright 2026 Avijit Sarkar
+Copyright 2026 Kno2gether Labs LTD
 
 This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 
@@ -12,20 +12,26 @@ Everything in this repository — the approval server, the SDK and the phone app
 — is Apache-2.0. You may run it, change it, and use it commercially, including
 inside your own product, with no fee and no separate agreement.
 
-What is not in this repository
-------------------------------
+Editions
+--------
 
-A managed, hosted edition is offered separately: we run the server, handle
-provisioning and quotas, and provide support and an SLA. Anything built only
-for that service — the operator console, billing, account provisioning, SSO
-integrations — is not part of this repository and is not covered by this
-licence.
+Running one server for many organisations (multi-tenancy) is AgentAction's
+Enterprise feature. Its code — tenants, per-tenant keys, branding, rules and
+webhooks, and the operator client in the SDK — is in this repository and is
+Apache-2.0 like the rest of it: you may run as many tenants as you like on your
+own installation. What the Enterprise plan sells is the support, onboarding,
+SLA and hosting around it, not permission to use this code.
 
-To be clear about a thing that is easy to misread: the multi-tenant *data
-model* in this repository (tenants, subjects, per-tenant keys and branding) is
-Apache-2.0 like the rest of it, and you may run as many tenants as you like on
-your own installation. The commercial offering is the hosted service around it,
-not permission to use that code.
+Anything built only for a hosted service in future — an operator console,
+billing, SSO — would not be part of this repository and would not be covered by
+this licence.
+
+Who owns this
+-------------
+
+AgentAction is a product of **Kno2gether Labs LTD**, which holds the copyright
+in this work and owns the AgentAction name and mark. Contributions are accepted
+under the Apache-2.0 licence above.
 
 Trade marks
 -----------
@@ -33,7 +39,10 @@ Trade marks
 The Apache-2.0 licence does not grant rights to the AgentAction name or logo.
 Forks and derived works are welcome, under a different name and mark.
 
-Contact
--------
+Getting it deployed
+-------------------
 
-Commercial, enterprise or unusual deployments: https://sonti.io
+Integration, deployment and enterprise engagements are delivered by Sonti
+(https://sonti.io), an AI engineering agency working with Kno2gether Labs on
+this product. Sonti provides the services; the product and its IP remain with
+Kno2gether Labs LTD.

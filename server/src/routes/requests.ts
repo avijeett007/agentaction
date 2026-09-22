@@ -241,6 +241,8 @@ function publicState(request: ApprovalRequest, decisions: Decision[]) {
     expiresAt: request.expiresAt,
     decidedAt: request.decidedAt,
     decisionScope: request.decisionScope,
+    /** How long the grant lasts, in seconds. Null when the answer was `once`. */
+    decisionWindowSec: request.decisionWindowSec,
     resourceKey: request.resourceKey,
     title: request.title,
     argsHash: request.argsHash,

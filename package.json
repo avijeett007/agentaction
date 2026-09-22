@@ -12,5 +12,10 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
-  "license": "UNLICENSED"
+  "license": "Apache-2.0",
+  "author": "Kno2gether Labs LTD",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/avijeett007/agentaction.git"
+  }
 }

@@ -92,22 +92,54 @@ export function deviceRequestMessage(
 export type DecisionValue = 'approved' | 'denied';
 export type DecisionScope = 'once' | 'window';
 
+/**
+ * The windows an approval may grant, shortest first.
+ *
+ * This list is part of the wire contract, not a presentation choice: the
+ * server refuses any other value outright rather than rounding it, so the
+ * phone must never offer one. Labels live in `windows.ts`.
+ */
+export const DECISION_WINDOWS_SEC = [300, 900, 3600, 28800] as const;
+export type DecisionWindowSec = (typeof DECISION_WINDOWS_SEC)[number];
+
+/** The window an approval that covers only this one call signs. */
+export const NO_WINDOW_SEC = 0;
+
 export interface DecisionMessageInput {
   requestId: string;
   decision: DecisionValue;
   scope: DecisionScope;
+  /**
+   * Seconds the grant will last; 0 when the scope is `once`. Signed, never
+   * merely sent — see the note on the builder below.
+   */
+  windowSec: number;
   /** Comes back on the request detail; binds the decision to the arguments. */
   argsHash: string;
   signedAt: string;
 }
 
-/** What the biometric-gated approval key signs to approve or deny. */
+/**
+ * What the biometric-gated approval key signs to approve or deny.
+ *
+ * `windowSec` is inside the message on purpose. If the duration rode alongside
+ * the signature, anything that could rewrite the request between this phone
+ * and the server could turn five minutes of access into eight hours without
+ * invalidating a thing. `once` signs a literal `0` rather than dropping the
+ * line, so the message is always these seven fields in this order — one shape,
+ * one way to build it, on both sides.
+ *
+ * `v2` marks the extra line: the server rebuilds v2 and only v2, so a phone
+ * still signing the old six-line message is refused rather than silently given
+ * whatever window the server felt like.
+ */
 export function decisionMessage(input: DecisionMessageInput): string {
   return [
-    'agentaction.decision.v1',
+    'agentaction.decision.v2',
     input.requestId,
     input.decision,
     input.scope,
+    String(input.windowSec),
     input.argsHash,
     input.signedAt,
   ].join('\n');

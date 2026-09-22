@@ -7,6 +7,7 @@
  * rather than produced by the code under test.
  */
 import {
+  DECISION_WINDOWS_SEC,
   SHA256_OF_EMPTY,
   decisionMessage,
   decisionSignedAt,
@@ -104,12 +105,13 @@ describe('deviceRequestMessage', () => {
 });
 
 describe('decisionMessage', () => {
-  it('is the v1 prefix, id, decision, scope, args hash and signedAt', () => {
+  it('is the v2 prefix, id, decision, scope, window, args hash and signedAt', () => {
     const expected =
-      'agentaction.decision.v1\n' +
+      'agentaction.decision.v2\n' +
       'req_9f2a\n' +
       'approved\n' +
       'window\n' +
+      '900\n' +
       '4d7c1e3b0a5f6d8c9b2e1a0f3c4d5e6a7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4\n' +
       '2026-09-20T11:22:33.000Z';
 
@@ -118,24 +120,78 @@ describe('decisionMessage', () => {
         requestId: 'req_9f2a',
         decision: 'approved',
         scope: 'window',
+        windowSec: 900,
         argsHash: '4d7c1e3b0a5f6d8c9b2e1a0f3c4d5e6a7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4',
         signedAt: '2026-09-20T11:22:33.000Z',
       }),
     ).toBe(expected);
-    expect(expected.split('\n')).toHaveLength(6);
+    expect(expected.split('\n')).toHaveLength(7);
   });
 
-  it('distinguishes deny from approve and once from window', () => {
+  it('signs a literal 0 for once, rather than leaving the field out', () => {
+    // The alternative — omitting the line — would give the message two shapes,
+    // and two shapes is how a verifier ends up guessing which one it has.
+    const once =
+      'agentaction.decision.v2\nreq_9f2a\napproved\nonce\n0\naa\n1789862400';
+
+    expect(
+      decisionMessage({
+        requestId: 'req_9f2a',
+        decision: 'approved',
+        scope: 'once',
+        windowSec: 0,
+        argsHash: 'aa',
+        signedAt: '1789862400',
+      }),
+    ).toBe(once);
+    expect(once.split('\n')).toHaveLength(7);
+  });
+
+  /**
+   * Every window the app can offer, written out by hand. The server rebuilds
+   * these exact bytes from its own copy of the builder; if one of them drifts,
+   * that duration silently stops working on real phones.
+   */
+  it('pins the bytes for every window the picker can offer', () => {
+    const cases: [number, string][] = [
+      [300, 'agentaction.decision.v2\nreq_1\napproved\nwindow\n300\naa\n1789862400'],
+      [900, 'agentaction.decision.v2\nreq_1\napproved\nwindow\n900\naa\n1789862400'],
+      [3600, 'agentaction.decision.v2\nreq_1\napproved\nwindow\n3600\naa\n1789862400'],
+      [28800, 'agentaction.decision.v2\nreq_1\napproved\nwindow\n28800\naa\n1789862400'],
+    ];
+
+    for (const [windowSec, expected] of cases) {
+      expect(
+        decisionMessage({
+          requestId: 'req_1',
+          decision: 'approved',
+          scope: 'window',
+          windowSec,
+          argsHash: 'aa',
+          signedAt: '1789862400',
+        }),
+      ).toBe(expected);
+    }
+
+    // The durations pinned above are exactly the ones the protocol allows —
+    // nothing here is testing a window the server would refuse.
+    expect(cases.map(([sec]) => sec)).toEqual([...DECISION_WINDOWS_SEC]);
+  });
+
+  it('distinguishes deny from approve, once from window, and window from window', () => {
     const base = {
       requestId: 'req_1',
       argsHash: 'aa',
       signedAt: '2026-09-20T00:00:00.000Z',
     } as const;
-    const approveOnce = decisionMessage({ ...base, decision: 'approved', scope: 'once' });
-    const approveWindow = decisionMessage({ ...base, decision: 'approved', scope: 'window' });
-    const deny = decisionMessage({ ...base, decision: 'denied', scope: 'once' });
+    const approveOnce = decisionMessage({ ...base, decision: 'approved', scope: 'once', windowSec: 0 });
+    const fiveMinutes = decisionMessage({ ...base, decision: 'approved', scope: 'window', windowSec: 300 });
+    const eightHours = decisionMessage({ ...base, decision: 'approved', scope: 'window', windowSec: 28800 });
+    const deny = decisionMessage({ ...base, decision: 'denied', scope: 'once', windowSec: 0 });
 
-    expect(new Set([approveOnce, approveWindow, deny]).size).toBe(3);
+    // The last pair is the point of the whole change: two approvals that
+    // differ only in how long they last must not share a signature.
+    expect(new Set([approveOnce, fiveMinutes, eightHours, deny]).size).toBe(4);
   });
 });
 

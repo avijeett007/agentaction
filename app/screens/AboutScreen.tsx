@@ -62,12 +62,13 @@ export function AboutScreen({ onBack }: { onBack: () => void }) {
           <Heading>Want this in your own stack?</Heading>
           <Text style={styles.paragraph}>
             AgentAction is an approval layer for agent tool calls, and it is not tied to one
-            platform. Run the server yourself against your own gateway, or have the team who built
-            it deploy and operate it alongside what you already have.
+            platform. Run the server yourself against your own gateway, or have it deployed and
+            operated for you alongside what you already have.
           </Text>
           <Text style={styles.paragraph}>
-            Sonti does security-focused AI engineering: agent gateways, approval and audit paths,
-            and the unglamorous parts that decide whether an agent is safe to hand a key to.
+            That work is delivered by Sonti, an AI engineering agency we work with: agent
+            gateways, approval and audit paths, and the unglamorous parts that decide whether an
+            agent is safe to hand a key to.
           </Text>
           {problem ? <Notice tone="warn">{problem}</Notice> : null}
           <Button title="Open sonti.io" icon="open-outline" onPress={openSite} />
@@ -75,7 +76,7 @@ export function AboutScreen({ onBack }: { onBack: () => void }) {
 
         <View style={styles.footNotes}>
           {version ? <Text style={type.meta}>AgentAction {version}</Text> : null}
-          <Text style={type.meta}>Built by Sonti.</Text>
+          <Text style={type.meta}>A Kno2gether Labs product.</Text>
         </View>
       </Screen>
     </View>

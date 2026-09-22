@@ -1,0 +1,20 @@
+# The server image only needs the root workspace files, server/ and sdk/'s
+# package.json. Everything else stays out of the build context — above all,
+# anything that could hold a secret.
+.git
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+**/*.db
+**/*.db-journal
+**/eas.local.json
+**/google-services.json
+**/GoogleService-Info.plist
+**/*service-account*.json
+app
+site
+brand
+docs

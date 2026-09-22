@@ -17,6 +17,11 @@ const MAX_ATTEMPTS = 6;
 const REQUEST_TIMEOUT_MS = 10_000;
 const BATCH = 50;
 const INTERVAL_MS = 5_000;
+/**
+ * How long a claimed delivery is hidden from other sweeps. Comfortably longer
+ * than one POST plus its bookkeeping, so it only lapses if the process died.
+ */
+const CLAIM_LEASE_MS = 60_000;
 
 export interface DeliveryRun {
   delivered: number;
@@ -77,6 +82,7 @@ export async function deliverPending(now: Date = new Date()): Promise<DeliveryRu
     });
 
     for (const delivery of due) {
+      if (!(await claim(delivery, now))) continue;
       const outcome = await deliverOne(delivery, now);
       run[outcome] += 1;
     }
@@ -84,6 +90,28 @@ export async function deliverPending(now: Date = new Date()): Promise<DeliveryRu
     logger.warn('webhook sweep failed', { error: err instanceof Error ? err.message : String(err) });
   }
   return run;
+}
+
+/**
+ * Takes one delivery for this process, or reports that another sweep has it.
+ *
+ * Every server instance runs this sweep, so two can read the same due row. The
+ * update only matches the row as it was read (same attempt count, same due
+ * time), so exactly one sweep wins it; the lease then pushes the due time
+ * forward so the others skip it. If this process dies mid-send the delivery
+ * becomes due again once the lease runs out, and is retried as normal.
+ */
+async function claim(delivery: WebhookDelivery, now: Date): Promise<boolean> {
+  const { count } = await prisma.webhookDelivery.updateMany({
+    where: {
+      id: delivery.id,
+      status: 'pending',
+      attempts: delivery.attempts,
+      nextAttempt: delivery.nextAttempt,
+    },
+    data: { nextAttempt: new Date(now.getTime() + CLAIM_LEASE_MS) },
+  });
+  return count === 1;
 }
 
 async function deliverOne(
@@ -112,6 +140,9 @@ async function deliverOne(
       resourceKey: request.resourceKey,
       status: request.status,
       decisionScope: request.decisionScope,
+      // Seconds the grant covers, so the integrator can reason about how long
+      // identical calls will come back ungated. Null when nothing was granted.
+      decisionWindowSec: request.decisionWindowSec,
       argsHash: request.argsHash,
       decidedAt: request.decidedAt ? request.decidedAt.toISOString() : null,
     });

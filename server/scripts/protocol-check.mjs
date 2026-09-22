@@ -94,29 +94,58 @@ const detail = await fetch(`${BASE}${detailPath}`, {
 }).then(r => r.json());
 ok('opening it shows the arguments', detail.request?.fields?.[0]?.value === 'patient@example.com');
 
+/** The seven lines the phone signs. `windowSec` is 0 unless a window is granted. */
+const decisionMessage = (id, decision, scope, windowSec, argsHash, signedAt) =>
+  [
+    'agentaction.decision.v2',
+    id,
+    decision,
+    scope,
+    String(windowSec),
+    argsHash,
+    signedAt,
+  ].join('\n');
+
+/** Parks one more call, so each decision below is made on a fresh request. */
+async function park(hash) {
+  const res = await fetch(`${BASE}/v1/requests`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${API_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      externalId: SUBJECT,
+      actorLabel: 'Claude Code',
+      resourceKey: 'gmail/GMAIL_SEND_EMAIL',
+      title: 'Send email via Gmail',
+      fields: [{ label: 'To', value: 'patient@example.com' }],
+      argsHash: hash,
+    }),
+  }).then(r => r.json());
+  return res.request.id;
+}
+
+function decide(id, body) {
+  const path = `/v1/device/requests/${id}/decision`;
+  return fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: deviceHeaders(deviceId, deviceKeys, 'POST', path, body),
+    body: JSON.stringify(body),
+  });
+}
+
 // 5. Approve — the approval key signs the hash the server holds.
 const signedAt = String(Math.floor(Date.now() / 1000));
-const decisionMessage = [
-  'agentaction.decision.v1',
-  requestId,
-  'approved',
-  'once',
-  detail.request.argsHash,
-  signedAt,
-].join('\n');
 const body = {
   decision: 'approved',
   scope: 'once',
+  windowSec: 0,
   signedAt,
-  signature: approvalKeys.sign(decisionMessage),
+  signature: approvalKeys.sign(
+    decisionMessage(requestId, 'approved', 'once', 0, detail.request.argsHash, signedAt),
+  ),
 };
-const decisionPath = `${detailPath}/decision`;
-const decided = await fetch(`${BASE}${decisionPath}`, {
-  method: 'POST',
-  headers: deviceHeaders(deviceId, deviceKeys, 'POST', decisionPath, body),
-  body: JSON.stringify(body),
-}).then(r => r.json());
+const decided = await decide(requestId, body).then(r => r.json());
 ok('the signed approval is accepted', decided.request?.status === 'approved', decided.error?.message ?? '');
+ok('approving once grants nothing', decided.grant === null);
 
 // 6. The gateway sees it.
 const seen = await fetch(`${BASE}/v1/requests/${requestId}`, {
@@ -124,11 +153,39 @@ const seen = await fetch(`${BASE}/v1/requests/${requestId}`, {
 }).then(r => r.json());
 ok('the gateway sees the approval', seen.request?.status === 'approved');
 
-// 7. A tampered signature must not be accepted.
-const badBody = { ...body, signature: approvalKeys.sign(decisionMessage.replace('once', 'window')) };
-const bad = await fetch(`${BASE}/v1/device/requests/${requestId}/decision`, {
-  method: 'POST',
-  headers: deviceHeaders(deviceId, deviceKeys, 'POST', decisionPath, badBody),
-  body: JSON.stringify(badBody),
-});
-ok('a mismatched signature is refused', bad.status >= 400, `HTTP ${bad.status}`);
+// 7. A chosen window comes back as a grant of exactly that length.
+const windowHash = 'b'.repeat(64);
+const windowId = await park(windowHash);
+const windowAt = String(Math.floor(Date.now() / 1000));
+const windowBody = {
+  decision: 'approved',
+  scope: 'window',
+  windowSec: 300,
+  signedAt: windowAt,
+  signature: approvalKeys.sign(
+    decisionMessage(windowId, 'approved', 'window', 300, windowHash, windowAt),
+  ),
+};
+const windowed = await decide(windowId, windowBody).then(r => r.json());
+ok(
+  'a five-minute window is granted as five minutes',
+  windowed.grant?.windowSec === 300 || windowed.grant?.clamped === true,
+  windowed.grant ? `granted ${windowed.grant.windowSec}s, cap ${windowed.grant.maxWindowSec}s` : windowed.error?.message,
+);
+
+// 8. A signature made over a *different* window must not be accepted: this is
+//    the whole reason the duration is inside the signed message.
+const tamperHash = 'c'.repeat(64);
+const tamperId = await park(tamperHash);
+const tamperAt = String(Math.floor(Date.now() / 1000));
+const tamperBody = {
+  decision: 'approved',
+  scope: 'window',
+  windowSec: 28800, // sent
+  signedAt: tamperAt,
+  signature: approvalKeys.sign(
+    decisionMessage(tamperId, 'approved', 'window', 300, tamperHash, tamperAt), // signed
+  ),
+};
+const tampered = await decide(tamperId, tamperBody);
+ok('a window widened after signing is refused', tampered.status === 401, `HTTP ${tampered.status}`);

@@ -78,9 +78,23 @@ export interface ApprovalRequestState {
   expiresAt: string;
   createdAt?: string;
   decidedAt?: string | null;
+  /** `window` means a grant was created, so identical calls come back ungated. */
   decisionScope?: 'once' | 'window' | null;
+  /**
+   * How long that grant lasts, in seconds — the duration the person chose on
+   * their phone, after the agency's ceiling. Null when nothing was granted.
+   */
+  decisionWindowSec?: number | null;
   decidedByDeviceId?: string | null;
 }
+
+/**
+ * The windows a person may choose from when they approve. The phone offers
+ * these and nothing else, and the server refuses any other value, so an
+ * integrator can treat the set as closed.
+ */
+export const GRANT_WINDOWS_SEC = [300, 900, 3600, 28800] as const;
+export type GrantWindowSec = (typeof GRANT_WINDOWS_SEC)[number];
 
 export interface CreateApprovalRequestResult {
   request: ApprovalRequestState;
@@ -126,6 +140,55 @@ export interface DecisionWebhookEvent {
   resourceKey: string;
   status: ApprovalStatus;
   decisionScope: 'once' | 'window' | null;
+  /** Seconds the grant covers. Null unless `decisionScope` is `window`. */
+  decisionWindowSec: number | null;
   argsHash: string;
   decidedAt: string;
+}
+
+/** A tenant as the server describes it. Never includes its keys. */
+export interface TenantSummary {
+  id: string;
+  name: string;
+  brandName: string;
+  brandLogoUrl: string | null;
+  brandColor: string;
+  webhookUrl: string | null;
+  deviceCap: number;
+  requestTtlSec: number;
+  maxGrantWindowSec: number;
+}
+
+/** What an operator supplies to create one organisation's tenant. */
+export interface CreateTenantInput {
+  /** Your own label for this organisation. Not shown on the phone. */
+  name: string;
+  /** Shown on the phone after pairing, and in every notification. */
+  brandName: string;
+  brandLogoUrl?: string;
+  /** `#rrggbb`. */
+  brandColor?: string;
+  /**
+   * Where decisions are delivered. Put your own organisation id in the path
+   * (for example `/approvals/decision/<orgId>`) so the receiver knows which
+   * stored secret to verify with — and then check the decided request really
+   * belongs to that organisation before acting on it.
+   */
+  webhookUrl?: string;
+  /** Phones per end user, 1–5. */
+  deviceCap?: number;
+  /** How long a request waits for an answer, 300–3600 seconds. */
+  requestTtlSec?: number;
+  /** Longest "approve for a while" window this organisation allows; 0 turns windows off. */
+  maxGrantWindowSec?: number;
+}
+
+export type UpdateTenantInput = Partial<Omit<CreateTenantInput, 'name'>>;
+
+export interface CreateTenantResult {
+  tenant: TenantSummary;
+  /** Returned once. The server keeps only a hash. */
+  apiKey: string;
+  /** Returned once. Verifies this tenant's decision webhooks. */
+  webhookSecret: string;
 }

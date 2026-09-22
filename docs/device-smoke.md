@@ -28,7 +28,7 @@ created, and the app installed — see [../TESTING.md](../TESTING.md).
 | 11 | Repeat and Deny | Nothing runs; the agent is told it was denied |
 | 12 | Repeat and wait out the expiry | Nothing runs; the request shows as expired on both sides |
 | 13 | With two phones paired, approve on one | The other clears its notification and shows who decided |
-| 14 | Approve with "for 15 minutes", then repeat the same call | The second call runs without asking |
+| 14 | Tap "Approve for longer…", pick 5 min, then repeat the same call | Only the durations the tenant allows are offered; the second call runs without asking, and the outcome line names the window that was granted |
 
 ## Recovery and failure
 

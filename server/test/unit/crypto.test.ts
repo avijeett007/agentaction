@@ -53,12 +53,13 @@ describe('verifyEd25519', () => {
     expect(verifyEd25519(keys.publicKey, 'hello', 'not-a-signature')).toBe(false);
   });
 
-  it('binds a decision to its request, verdict and arguments', () => {
+  it('binds a decision to its request, verdict, arguments and window', () => {
     const keys = makeKeyPair();
     const base = {
       requestId: 'req_1',
       decision: 'approved',
-      scope: 'once',
+      scope: 'window',
+      windowSec: 300,
       argsHash: 'abc',
       signedAt: '1700000000',
     };
@@ -70,6 +71,38 @@ describe('verifyEd25519', () => {
     expect(
       verifyEd25519(keys.publicKey, decisionMessage({ ...base, decision: 'denied' }), sig),
     ).toBe(false);
+    // The one this change exists for: five minutes signed, eight hours sent.
+    expect(
+      verifyEd25519(keys.publicKey, decisionMessage({ ...base, windowSec: 28800 }), sig),
+    ).toBe(false);
+  });
+
+  it('spells the decision message out, field by field', () => {
+    // Written literally rather than built, because the app rebuilds these exact
+    // bytes from its own copy of the builder (app/lib/protocol.ts).
+    expect(
+      decisionMessage({
+        requestId: 'req_9f2a',
+        decision: 'approved',
+        scope: 'window',
+        windowSec: 900,
+        argsHash: 'aa',
+        signedAt: '1700000000',
+      }),
+    ).toBe('agentaction.decision.v2\nreq_9f2a\napproved\nwindow\n900\naa\n1700000000');
+
+    // `once` signs a literal 0 rather than dropping the line, so every message
+    // has the same seven fields.
+    expect(
+      decisionMessage({
+        requestId: 'req_9f2a',
+        decision: 'approved',
+        scope: 'once',
+        windowSec: 0,
+        argsHash: 'aa',
+        signedAt: '1700000000',
+      }),
+    ).toBe('agentaction.decision.v2\nreq_9f2a\napproved\nonce\n0\naa\n1700000000');
   });
 });
 

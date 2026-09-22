@@ -16,7 +16,7 @@ function account(overrides: Partial<Account> = {}): Account {
     deviceId: 'dev_1',
     serverUrl: 'https://approvals.example.com',
     subjectLabel: 'ops@acme.com',
-    deviceLabel: "Avijit's iPhone",
+    deviceLabel: "Sam's iPhone",
     brand: { name: 'Acme', logoUrl: null, color: '#123456' },
     createdAt: '2026-09-20T00:00:00.000Z',
     keyRef: 'ref1',
@@ -88,7 +88,7 @@ describe('getAccount and updateAccount', () => {
     await updateAccount('dev_2', { deviceLabel: 'Work phone', pushToken: 'ExponentPushToken[x]' });
 
     const accounts = await listAccounts();
-    expect(accounts.find(a => a.deviceId === 'dev_1')?.deviceLabel).toBe("Avijit's iPhone");
+    expect(accounts.find(a => a.deviceId === 'dev_1')?.deviceLabel).toBe("Sam's iPhone");
     expect(accounts.find(a => a.deviceId === 'dev_2')).toMatchObject({
       deviceLabel: 'Work phone',
       pushToken: 'ExponentPushToken[x]',

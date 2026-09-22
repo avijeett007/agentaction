@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import {
   AgentActionClient,
   AgentActionError,
+  GRANT_WINDOWS_SEC,
   canonicalJson,
   hashArgs,
   parseWebhook,
@@ -152,6 +153,7 @@ describe('webhooks', () => {
     resourceKey: 'gmail/GMAIL_SEND_EMAIL',
     status: 'approved',
     decisionScope: 'once',
+    decisionWindowSec: null,
     argsHash: 'abc',
     decidedAt: '2026-09-20T01:00:00.000Z',
   };
@@ -181,6 +183,31 @@ describe('webhooks', () => {
     const now = Date.now();
     expect(parseWebhook(secret, sign(Math.floor(now / 1000)), body, now).requestId).toBe('req_1');
     expect(() => parseWebhook(secret, 't=1,v1=bad', body, now)).toThrow(AgentActionError);
+  });
+
+  it('carries how long a granted window lasts, so the caller can reason about it', () => {
+    // `decisionScope: "window"` alone only says "and stop asking" — the number
+    // is what tells an integrator for how long identical calls come back
+    // ungated. It is part of the signed bytes like everything else here.
+    const windowed = JSON.stringify({
+      ...event,
+      decisionScope: 'window',
+      decisionWindowSec: 900,
+    });
+    const now = Date.now();
+    const parsed = parseWebhook(
+      secret,
+      sign(Math.floor(now / 1000), windowed),
+      windowed,
+      now,
+    );
+
+    expect(parsed.decisionScope).toBe('window');
+    expect(parsed.decisionWindowSec).toBe(900);
+    expect(GRANT_WINDOWS_SEC).toContain(parsed.decisionWindowSec as 900);
+    // An approval for this one call says so with a null, never a 0 dressed up
+    // as a window.
+    expect(parseWebhook(secret, sign(Math.floor(now / 1000)), body, now).decisionWindowSec).toBeNull();
   });
 });
 

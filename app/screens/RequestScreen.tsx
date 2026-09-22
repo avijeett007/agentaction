@@ -14,13 +14,17 @@ import type { DecisionScope, DecisionValue, RequestDetail } from '../lib/api';
 import { BiometricRefusedError, signWithApprovalKey } from '../lib/keys';
 import { clientFor } from '../lib/pairing';
 import { decisionMessage, decisionSignedAt } from '../lib/protocol';
+import type { Theme } from '../lib/theme';
 import { palette, radius, space, themeFor, type } from '../lib/theme';
 import { countdownFor, isExpired, msUntil } from '../lib/time';
+import { describeWindow, windowOptionsFor } from '../lib/windows';
+import type { WindowOption } from '../lib/windows';
 import {
   AccountHeader,
   ArgumentField,
   Button,
   Card,
+  Chip,
   Divider,
   ErrorNote,
   Heading,
@@ -50,8 +54,11 @@ export function RequestScreen({
   const [detail, setDetail] = useState<RequestDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<DecisionScope | 'denied' | null>(null);
+  // Which control is mid-flight: 'denied', 'once', or 'window:900'. The window
+  // needs naming as well as the scope, so the right chip spins.
+  const [busy, setBusy] = useState<string | null>(null);
   const [expandedFields, setExpandedFields] = useState<Record<number, boolean>>({});
+  const [pickingWindow, setPickingWindow] = useState(false);
   const [outcome, setOutcome] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -68,16 +75,21 @@ export function RequestScreen({
   }, [load]);
 
   const decide = useCallback(
-    async (decision: DecisionValue, scope: DecisionScope) => {
+    async (decision: DecisionValue, scope: DecisionScope, windowSec = 0) => {
       if (!detail) return;
       setActionError(null);
-      setBusy(decision === 'denied' ? 'denied' : scope);
+      setBusy(
+        decision === 'denied' ? 'denied' : scope === 'window' ? `window:${windowSec}` : 'once',
+      );
       try {
         const signedAt = decisionSignedAt();
         const message = decisionMessage({
           requestId: detail.id,
           decision,
           scope,
+          // Signed, not merely sent: this is how long the owner is agreeing to,
+          // and nothing between here and the server may raise it.
+          windowSec,
           argsHash: detail.argsHash,
           signedAt,
         });
@@ -87,11 +99,21 @@ export function RequestScreen({
           account.approvalKeyMode,
           decision === 'approved' ? `Approve: ${detail.title}` : `Deny: ${detail.title}`,
         );
-        await clientFor(account).decide(detail.id, { decision, scope, signedAt, signature });
+        const result = await clientFor(account).decide(detail.id, {
+          decision,
+          scope,
+          windowSec,
+          signedAt,
+          signature,
+        });
+        // The server has the last word on how long: report what it granted,
+        // not what was asked for, and say so when the agency shortened it.
+        const granted = result?.grant?.windowSec ?? 0;
         setOutcome(
           decision === 'approved'
-            ? scope === 'window'
-              ? 'Approved, and allowed for the next 15 minutes.'
+            ? granted > 0
+              ? `Approved, and allowed for ${describeWindow(granted)}.` +
+                (result?.grant?.clamped ? ` ${theme.brand.name} does not allow longer.` : '')
               : 'Approved. The action is running now.'
             : 'Denied. Nothing will run.',
         );
@@ -109,7 +131,7 @@ export function RequestScreen({
         setBusy(null);
       }
     },
-    [account, detail, onDecided],
+    [account, detail, onDecided, theme.brand.name],
   );
 
   if (loadError) {
@@ -138,6 +160,11 @@ export function RequestScreen({
   const showActions = !expired && !decided;
   const urgency = countdownColour(left);
 
+  // Only what this agency allows. An empty list — a tenant that caps windows
+  // at nothing — removes the choice from the screen entirely rather than
+  // offering one that would be refused.
+  const windows = windowOptionsFor(detail.maxWindowSec);
+
   const actions = (
     <>
       {/* Deny sits above the approve pair, behind a rule. A phone rests
@@ -152,14 +179,13 @@ export function RequestScreen({
         onPress={() => decide('denied', 'once')}
       />
       <View style={styles.approveGroup}>
-        <Button
-          title="Approve for 15 minutes"
-          icon="time-outline"
+        <WindowChoice
+          windows={windows}
           theme={theme}
-          busy={busy === 'window'}
-          disabled={busy !== null}
-          caption="Also lets the same call through again, without asking, until then."
-          onPress={() => decide('approved', 'window')}
+          busy={busy}
+          open={pickingWindow}
+          onOpen={() => setPickingWindow(true)}
+          onChoose={sec => decide('approved', 'window', sec)}
         />
         <Button
           title="Approve"
@@ -256,6 +282,85 @@ export function RequestScreen({
 }
 
 /**
+ * "And stop asking for a while" — the secondary half of an approval.
+ *
+ * It is deliberately a second thought rather than the fast path: the primary
+ * button below it approves this one call, and choosing a duration takes an
+ * extra tap. Approving for eight hours should feel like a decision, not like
+ * the button that happened to be under the thumb.
+ *
+ * One allowed duration is offered outright, because asking someone to open a
+ * picker to choose from a list of one is a menu pretending to be a choice.
+ */
+function WindowChoice({
+  windows,
+  theme,
+  busy,
+  open,
+  onOpen,
+  onChoose,
+}: {
+  windows: WindowOption[];
+  theme: Theme;
+  /** Which control is mid-flight, as RequestScreen spells it. */
+  busy: string | null;
+  open: boolean;
+  onOpen: () => void;
+  onChoose: (sec: number) => void;
+}) {
+  // An agency that allows no window at all simply has no such control.
+  if (windows.length === 0) return null;
+  const caption = 'Lets the same call through again, without asking, until then.';
+
+  if (windows.length === 1) {
+    const only = windows[0];
+    return (
+      <Button
+        title={`Approve for ${only.phrase}`}
+        icon="time-outline"
+        theme={theme}
+        busy={busy === `window:${only.sec}`}
+        disabled={busy !== null}
+        caption={caption}
+        onPress={() => onChoose(only.sec)}
+      />
+    );
+  }
+
+  if (!open) {
+    return (
+      <Button
+        title="Approve for longer…"
+        icon="time-outline"
+        theme={theme}
+        disabled={busy !== null}
+        onPress={onOpen}
+      />
+    );
+  }
+
+  return (
+    <View style={styles.windowPicker}>
+      <SectionLabel>Approve, and stop asking for</SectionLabel>
+      <View style={styles.windowChips}>
+        {windows.map(option => (
+          <Chip
+            key={option.sec}
+            label={option.label}
+            theme={theme}
+            busy={busy === `window:${option.sec}`}
+            disabled={busy !== null}
+            accessibilityLabel={`Approve, and stop asking for ${option.phrase}`}
+            onPress={() => onChoose(option.sec)}
+          />
+        ))}
+      </View>
+      <Text style={type.meta}>{caption}</Text>
+    </View>
+  );
+}
+
+/**
  * The only moving thing in the app: a rule that empties as the request runs
  * out. It is driven by the same one-second tick as the countdown text, so it
  * costs no animation and cannot drift away from the number beside it.
@@ -296,6 +401,10 @@ const styles = StyleSheet.create({
     padding: space.lg,
     gap: space.md,
   },
+  windowPicker: { gap: space.sm },
+  // Wraps rather than scrolls: four durations must all be reachable without a
+  // gesture, on the narrowest phone this app supports.
+  windowChips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   slabRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   expiry: { alignItems: 'flex-end' },
   countdown: { fontSize: 21, fontWeight: '700', marginTop: 4, fontVariant: ['tabular-nums'] },

@@ -79,18 +79,38 @@ export interface RequestDetail extends PendingRequest {
   argsHash: string;
   fields: RequestField[];
   status?: string;
+  /**
+   * The longest window this account's agency allows, in seconds. The picker
+   * offers nothing longer, so the phone never promises a duration the server
+   * is about to shorten. Absent from an older server, which means no windows.
+   */
+  maxWindowSec?: number;
 }
 
 export interface DecisionInput {
   decision: DecisionValue;
   scope: DecisionScope;
+  /** Seconds the approval covers; 0 for `once`. Part of the signed message. */
+  windowSec: number;
   signedAt: string;
   /** Made with the biometric-gated approval key. */
   signature: string;
 }
 
+/** What the server actually granted, which may be shorter than what was asked. */
+export interface GrantResult {
+  windowSec: number;
+  requestedWindowSec: number;
+  maxWindowSec: number;
+  /** True when the agency ceiling shortened it — worth telling the owner. */
+  clamped: boolean;
+  expiresAt: string | null;
+}
+
 export interface DecisionResponse {
   request: { id: string; status: string; decidedAt?: string };
+  /** Null unless this was an approval with a window. */
+  grant?: GrantResult | null;
 }
 
 export interface DevicePatch {

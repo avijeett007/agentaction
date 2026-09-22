@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Human approval for AI agents, on your phone | AgentAction</title>
+<meta name="description" content="Choose which of your AI agent's actions need your approval, like sending an email or making a payment, then approve or deny each one on your phone. Open source.">
+<link rel="canonical" href="https://agentaction.online/">
+<meta name="theme-color" content="#14213D">
+<meta name="author" content="Avijit Sarkar">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://agentaction.online/">
+<meta property="og:site_name" content="AgentAction">
+<meta property="og:locale" content="en_GB">
+<meta property="og:title" content="Make your AI agent ask before it sends, pays or deletes">
+<meta property="og:description" content="Choose which actions your AI agent has to check with you, then approve or deny each one on your phone.">
+<meta property="og:image" content="https://agentaction.online/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The AgentAction app asking whether an agent called Sales assistant may send an email to 214 customers, with Deny and Approve buttons">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Make your AI agent ask before it sends, pays or deletes">
+<meta name="twitter:description" content="Choose which actions your AI agent has to check with you, then approve or deny each one on your phone.">
+<meta name="twitter:image" content="https://agentaction.online/assets/og.png">
+
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/styles.css">
+<script src="/main.js" defer></script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://agentaction.online/#organization",
+      "name": "Kno2gether Labs Ltd",
+      "email": "connect@agentaction.online",
+      "logo": "https://agentaction.online/assets/apple-touch-icon.png",
+      "founder": { "@id": "https://agentaction.online/#avijit-sarkar" }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://agentaction.online/#avijit-sarkar",
+      "name": "Avijit Sarkar",
+      "sameAs": ["https://www.linkedin.com/in/avijit-sarkar-aabb2524/"],
+      "worksFor": { "@id": "https://agentaction.online/#organization" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://agentaction.online/#website",
+      "url": "https://agentaction.online/",
+      "name": "AgentAction",
+      "inLanguage": "en-GB",
+      "publisher": { "@id": "https://agentaction.online/#organization" }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://agentaction.online/#webpage",
+      "url": "https://agentaction.online/",
+      "name": "Human approval for AI agents, on your phone | AgentAction",
+      "description": "Choose which of your AI agent's actions need your approval, like sending an email or making a payment, then approve or deny each one on your phone. Open source.",
+      "inLanguage": "en-GB",
+      "isPartOf": { "@id": "https://agentaction.online/#website" },
+      "about": { "@id": "https://agentaction.online/#software" },
+      "primaryImageOfPage": { "@type": "ImageObject", "url": "https://agentaction.online/assets/og.png", "width": 1200, "height": 630 },
+      "datePublished": "2026-09-20",
+      "dateModified": "2026-09-21"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://agentaction.online/#software",
+      "name": "AgentAction",
+      "alternateName": "Agent Action",
+      "url": "https://agentaction.online/",
+      "description": "Human approval for AI agents. Actions you choose, like sending email, paying or deleting files, wait until you approve them on your phone.",
+      "applicationCategory": "SecurityApplication",
+      "applicationSubCategory": "Human-in-the-loop approval for AI agents",
+      "operatingSystem": "Android, iOS",
+      "featureList": [
+        "Approve or deny an AI agent's actions on your phone",
+        "A one-off approval is tied to the exact action; if it changes, the agent has to ask again",
+        "Lock-screen notifications show only the kind of action and a 4-digit code",
+        "Approve one kind of action for a set time instead of every time",
+        "Organisation rules that users cannot switch off",
+        "A record of who approved what, and when",
+        "Built for MCP tool calls through a gateway, with a TypeScript SDK and signed webhooks",
+        "Self-host the server with Docker and Postgres"
+      ],
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "isAccessibleForFree": true,
+      "author": { "@id": "https://agentaction.online/#avijit-sarkar" },
+      "publisher": { "@id": "https://agentaction.online/#organization" },
+      "sameAs": ["https://github.com/avijeett007/agentaction"]
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://agentaction.online/#source",
+      "name": "AgentAction",
+      "codeRepository": "https://github.com/avijeett007/agentaction",
+      "programmingLanguage": "TypeScript",
+      "runtimePlatform": "Node.js",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "targetProduct": { "@id": "https://agentaction.online/#software" },
+      "author": { "@id": "https://agentaction.online/#avijit-sarkar" }
+    },
+    {
+      "@type": "VideoObject",
+      "name": "How AgentAction works, in 30 seconds",
+      "description": "An AI agent tries to email 214 customers; the request comes to a phone, is approved and runs once. A second request, to delete a shared folder, is denied and nothing happens.",
+      "thumbnailUrl": "https://agentaction.online/assets/media/agentaction-explainer-poster.webp",
+      "contentUrl": "https://agentaction.online/assets/media/agentaction-explainer-720p.mp4",
+      "uploadDate": "2026-09-21T21:00:00+01:00",
+      "duration": "PT30S"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json" id="faq-schema">{"@context":"https://schema.org","@type":"FAQPage","@id":"https://agentaction.online/#faq","mainEntity":[]}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="shell topbar__inner">
+    <a class="wordmark" href="/" aria-label="AgentAction home">
+      <svg class="wordmark__mark" viewBox="0 0 128 128" aria-hidden="true"><path d="M86 20H40a20 20 0 0 0-20 20v48a20 20 0 0 0 20 20h48a20 20 0 0 0 20-20V60" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round"/><path d="M46 66l18 18L110 24" fill="none" stroke="var(--approve)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>AgentAction</span>
+    </a>
+    <nav class="topnav" aria-label="Main">
+      <a href="#how-it-works">How it works</a>
+      <a href="#who-its-for">Who it's for</a>
+      <a href="#security">Security</a>
+      <a href="#questions">Questions</a>
+      <a href="#try">Get started</a>
+      <a href="https://github.com/avijeett007/agentaction">GitHub</a>
+    </nav>
+    <a class="btn btn--primary btn--small" href="https://portal.agentaction.online">Try AgentAction</a>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ===================================================== hero -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="shell hero__grid">
+    <div class="hero__copy">
+      <h1 id="hero-title" class="hero__title">
+        <span class="hero__kicker">Human approval for AI agents.</span>
+        Make your AI agent ask before it sends, pays or deletes.
+      </h1>
+      <p class="hero__lead">You pick which actions need your approval. When your agent tries one, a request comes to your phone. The action runs only if you approve it. Deny it or let it time out, and nothing happens.</p>
+      <div class="hero__actions">
+        <a class="btn btn--primary" href="https://portal.agentaction.online">Try AgentAction</a>
+        <a class="btn btn--quiet" href="#walkthrough">Watch the 30-second demo</a>
+      </div>
+      <p class="hero__small">Sign up at <a href="https://portal.agentaction.online">portal.agentaction.online</a> and connect your first app straight away. <a href="#try">How to get started</a></p>
+    </div>
+
+    <div class="demo" id="demo" data-state="open">
+      <div class="chat" aria-label="Chat with an AI agent">
+        <div class="chat__head">
+          <span class="chat__avatar" aria-hidden="true">S</span>
+          <span><b>Sales assistant</b><small>Works in your Gmail and Google Drive</small></span>
+        </div>
+        <p class="chat__msg">I've written the spring offer. Sending it to all 214 customers now.</p>
+        <p class="chat__status chat__status--hold"><i aria-hidden="true"></i><span>Waiting for your approval. Code <mark>4821</mark></span></p>
+        <p class="chat__status chat__status--ok" data-show="approved"><i aria-hidden="true"></i><span>Approved. Sent to 214 customers.</span></p>
+        <p class="chat__status chat__status--window" data-show="window"><i aria-hidden="true"></i><span>Approved. Sent to 214 customers.<span class="chat__win" hidden>15 minutes</span></span></p>
+        <p class="chat__msg chat__msg--after" data-show="denied">You said no, so I haven't sent it. Shall I send it just to the 3 customers who asked?</p>
+      </div>
+
+      <div class="phone">
+        <div class="phone__screen">
+          <div class="lock" aria-hidden="true">
+            <div class="lock__date">Tuesday 14 April</div>
+            <div class="lock__time">09:41</div>
+            <button class="notif" type="button" tabindex="-1">
+              <svg viewBox="0 0 128 128" aria-hidden="true"><path d="M86 20H40a20 20 0 0 0-20 20v48a20 20 0 0 0 20 20h48a20 20 0 0 0 20-20V60" fill="none" stroke="#5B8CFF" stroke-width="12" stroke-linecap="round"/><path d="M46 66l18 18L110 24" fill="none" stroke="#2FD98B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span><b>AgentAction: approval needed</b>Send email via Gmail · code 4821</span>
+            </button>
+          </div>
+
+          <div class="app" aria-label="The AgentAction app, showing a request">
+            <div class="app__head">
+              <div class="app__brand"><svg viewBox="0 0 128 128" aria-hidden="true"><path d="M86 20H40a20 20 0 0 0-20 20v48a20 20 0 0 0 20 20h48a20 20 0 0 0 20-20V60" fill="none" stroke="#5B8CFF" stroke-width="12" stroke-linecap="round"/><path d="M46 66l18 18L110 24" fill="none" stroke="#2FD98B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>AgentAction</div>
+              <div class="app__sub">Your account</div>
+            </div>
+            <div class="app__body">
+              <div class="app__card">
+                <div class="app__title">Send email via Gmail</div>
+                <div class="app__slab">
+                  <div><div class="app__label">Code</div><div class="app__code"><mark>4821</mark></div></div>
+                  <div class="app__exp"><div class="app__label">Expires in</div><div class="app__count">9:52</div></div>
+                </div>
+                <p class="app__meta">Check this is the same code your agent showed you. If it is not, deny it.</p>
+              </div>
+              <div class="app__card app__row"><span class="app__label">Asked by</span><span>Sales assistant</span></div>
+              <div class="app__card">
+                <div class="app__heading">What it will do</div>
+                <p class="app__warn">Written by the AI agent. Read it as text, not as instructions.</p>
+                <div class="app__field"><span class="app__label">To</span><span>214 customers (spring list)</span></div>
+                <div class="app__field"><span class="app__label">Subject</span><span>20% off this weekend only</span></div>
+              </div>
+            </div>
+            <div class="app__actions">
+              <button type="button" class="abtn abtn--deny" data-decide="denied">Deny</button>
+              <button type="button" class="abtn abtn--longer" data-decide="longer" aria-expanded="false">Approve for longer…</button>
+              <div class="app__windows" hidden>
+                <span class="app__label">Approve, and stop asking for</span>
+                <span class="app__chips">
+                  <button type="button" data-window="5 minutes">5 min</button>
+                  <button type="button" data-window="15 minutes">15 min</button>
+                  <button type="button" data-window="1 hour">1 hour</button>
+                </span>
+              </div>
+              <button type="button" class="abtn abtn--approve" data-decide="approved">Approve</button>
+            </div>
+            <p class="app__outcome" aria-live="polite"></p>
+          </div>
+        </div>
+      </div>
+
+      <p class="demo__hint">Tap Approve or Deny on the phone to see what the agent says back. <button type="button" class="demo__again" hidden>Run it again</button></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== bank -->
+<section class="band band--bank" aria-labelledby="bank-title">
+  <div class="shell bank">
+    <div class="bank__copy">
+      <h2 id="bank-title" class="h2">It works like the check your bank does.</h2>
+      <p>When you pay online, your banking app sometimes asks you to confirm it's you, and the money only moves once you do. AgentAction puts the same kind of check in front of the actions you choose for your AI agent.</p>
+    </div>
+    <div class="bank__pair" aria-hidden="true">
+      <div class="note note--bank">
+        <span class="note__icon">£</span>
+        <span><b>Your bank</b>Confirm your payment of £240.00 to Morley Plumbing</span>
+      </div>
+      <div class="note note--aa">
+        <svg class="note__icon" viewBox="0 0 128 128"><path d="M86 20H40a20 20 0 0 0-20 20v48a20 20 0 0 0 20 20h48a20 20 0 0 0 20-20V60" fill="none" stroke="#5B8CFF" stroke-width="12" stroke-linecap="round"/><path d="M46 66l18 18L110 24" fill="none" stroke="#2FD98B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span><b>AgentAction: approval needed</b>Send email via Gmail · code 4821</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== problem -->
+<section class="band" id="problem" aria-labelledby="problem-title">
+  <div class="shell">
+    <div class="prose">
+      <h2 id="problem-title" class="h2">Your agent can send an email you've never seen.</h2>
+      <p>People give AI agents their inbox, calendar, files and customer lists so they don't have to watch every step. The catch is that an agent can't always tell your instruction from one hidden in an email or web page it has read, and it will act on either just as quickly.</p>
+      <p class="lede-small">For example:</p>
+    </div>
+    <div class="cases">
+      <article class="case">
+        <h3>Wrong list</h3>
+        <p>You ask for a reminder to 3 clients who haven't paid, and the agent picks the whole mailing list. Your phone shows the whole mailing list in the To line before a single one goes out.</p>
+      </article>
+      <article class="case">
+        <h3>Hidden instruction</h3>
+        <p>An email arrives with text you can't see, telling your agent to forward every invoice to an address you've never heard of. Your phone asks you to approve forwarding invoices to that address.</p>
+      </article>
+      <article class="case">
+        <h3>Double refund</h3>
+        <p>An agent handling customer service refunds £40, loses track of the conversation and goes to refund it again. The second request has the same customer and the same £40 you approved 10 minutes ago, so you deny it.</p>
+      </article>
+      <article class="case">
+        <h3>Shared folder</h3>
+        <p>Tidying a shared drive, the agent decides a folder is old and tries to delete it. The request names the folder, and you know a colleague still works from it.</p>
+      </article>
+    </div>
+    <p class="footnote">We made these examples up to show what can go wrong.</p>
+  </div>
+</section>
+
+<!-- ===================================================== how it works -->
+<section class="band band--tint" id="how-it-works" aria-labelledby="how-title">
+  <div class="shell how">
+    <div class="how__text">
+      <h2 id="how-title" class="h2">How AgentAction works</h2>
+      <ol class="steps">
+        <li>
+          <h3>Choose what needs your approval.</h3>
+          <p>Pick the actions to check, such as sending a new email, paying, deleting or posting. Or start from a suggested set. Anything you don't pick runs as normal, so your agent can still reply to emails on its own if you want it to.</p>
+        </li>
+        <li>
+          <h3>The request comes to your phone.</h3>
+          <p>When your agent tries one of those actions, the action waits and a request appears in the AgentAction app. The lock screen shows only the kind of action and a 4-digit code. If you're chatting with your agent, it's given the same code to show you, so you can tell which request is which. If it's working in the background, go by the summary instead.</p>
+        </li>
+        <li>
+          <h3>Approve or deny.</h3>
+          <p>Open the request to see a summary: who the email is going to and its subject. On a phone with a screen lock, approving takes your face, fingerprint or passcode. If you deny it, or don't answer within 10 minutes, it doesn't run.</p>
+        </li>
+      </ol>
+      <p class="longer">If your agent is sending 40 invoices, you won't want to approve each one. Tap "Approve for longer" and that kind of action goes ahead, whatever the details, for 5 minutes, 15 minutes or 1 hour.</p>
+    </div>
+    <figure class="walkthrough" id="walkthrough">
+      <div class="walkthrough__frame">
+        <video class="walkthrough__video" preload="none" playsinline controls poster="/assets/media/agentaction-explainer-poster.webp" width="1280" height="720" aria-label="A 30-second walkthrough of AgentAction, recreated from the app's own screens">
+          <source src="/assets/media/agentaction-explainer-720p.mp4" type="video/mp4">
+        </video>
+      </div>
+      <figcaption>The whole thing in 30 seconds, recreated with the app's own screens and wording. There's no sound.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================================================== who -->
+<section class="band" id="who-its-for" aria-labelledby="who-title">
+  <div class="shell">
+    <div class="prose">
+      <h2 id="who-title" class="h2">Who it's for</h2>
+    </div>
+    <nav class="jump" aria-label="Who it's for">
+      <a href="#for-you">Using an agent yourself</a>
+      <a href="#for-small-businesses">Small businesses</a>
+      <a href="#for-agencies">Agencies</a>
+      <a href="#for-developers">Developers</a>
+      <a href="#for-enterprise">Larger organisations</a>
+    </nav>
+
+    <article class="who" id="for-you">
+      <figure class="rules" aria-label="Example rules for a Gmail account">
+        <div class="rules__app"><span class="rules__icon" aria-hidden="true">M</span><b>Gmail</b></div>
+        <div class="rules__row"><span>Reply to a thread</span><span class="rules__state">Runs on its own</span><span class="switch" aria-hidden="true"></span></div>
+        <div class="rules__row"><span>Send a new email</span><span class="rules__state rules__state--on">Asks you first</span><span class="switch switch--on" aria-hidden="true"></span></div>
+        <div class="rules__row"><span>Delete a thread</span><span class="rules__state rules__state--on">Asks you first</span><span class="switch switch--on" aria-hidden="true"></span></div>
+        <figcaption>You choose, one action at a time.</figcaption>
+      </figure>
+      <div class="who__text">
+        <p class="who__tag">Using an agent yourself</p>
+        <h3 class="h3">Hand your inbox to an agent and still decide what it sends.</h3>
+        <p>You gave an agent your email so you could stop reading every reply. Let it keep answering threads, and have it ask you before it starts a new email or spends money.</p>
+      </div>
+    </article>
+
+    <article class="who who--flip" id="for-small-businesses">
+      <figure class="stack" aria-label="Notifications on a locked phone">
+        <div class="note note--grey"><svg class="note__icon note__icon--mail" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="9" fill="#2F7BF5"/><path d="M9 12h16v11H9z" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l8 6 8-6" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg><span><b>Mail</b>Re: collection on Saturday?</span></div>
+        <div class="note note--aa"><svg class="note__icon" viewBox="0 0 128 128" aria-hidden="true"><path d="M86 20H40a20 20 0 0 0-20 20v48a20 20 0 0 0 20 20h48a20 20 0 0 0 20-20V60" fill="none" stroke="#5B8CFF" stroke-width="12" stroke-linecap="round"/><path d="M46 66l18 18L110 24" fill="none" stroke="#2FD98B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>AgentAction: approval needed</b>Issue a refund via Stripe · code 2586</span></div>
+        <div class="note note--grey"><span class="note__icon note__icon--cal" aria-hidden="true">14</span><span><b>Calendar</b>Flour delivery, 07:30</span></div>
+        <figcaption>A refund request among everything else on your phone. Open it to see the amount and the order.</figcaption>
+      </figure>
+      <div class="who__text">
+        <p class="who__tag">Small businesses</p>
+        <h3 class="h3">Refunds and discounts stay with you.</h3>
+        <p>Let the agent chase unpaid invoices and answer most enquiries. When it wants to give a refund or a discount, the request comes to your phone and you deal with it between customers.</p>
+      </div>
+    </article>
+
+    <article class="who" id="for-agencies">
+      <figure class="brandshot">
+        <div class="mini" aria-hidden="true">
+          <div class="mini__head"><span class="mini__logo">B</span><span><b>Brightside Digital</b><small>Harbour Books</small></span></div>
+          <div class="mini__card"><div class="mini__title">Publish a post to Instagram</div><div class="mini__code">7310</div></div>
+          <div class="mini__card mini__field"><span>Account</span><span>Harbour Books</span></div>
+          <div class="mini__btns"><span class="mini__deny">Deny</span><span class="mini__approve">Approve</span></div>
+        </div>
+        <figcaption>Brightside Digital is an agency we made up; Harbour Books is its client.</figcaption>
+      </figure>
+      <div class="who__text">
+        <p class="who__tag">Agencies</p>
+        <h3 class="h3">Each client approves their own agents' actions, inside rules you set.</h3>
+        <p>Each client pairs their own phone, and the approval screen carries your agency's name, logo and colour. You set the rules a client can't switch off (every payment needs approval, for instance), and whether they can use "Approve for longer", and for how long. They choose the rest. When a client asks who approved that email, the record shows which phone approved it, and when.</p>
+        <p>If you run agents for many clients, one AgentAction installation can serve them all as separate organisations, each with its own locked rules and settings. Sonti, the AI engineering agency we work with, sets that up as part of Enterprise.</p>
+        <p><a class="link" href="https://sonti.io/#booking">Talk to Sonti about your clients</a></p>
+      </div>
+    </article>
+
+    <article class="who who--dev" id="for-developers">
+      <div class="who__text">
+        <p class="who__tag">Developers</p>
+        <h3 class="h3">Add a human approval step to any MCP or API tool call.</h3>
+        <p>AgentAction is an approval server and a TypeScript SDK. Before your code runs a risky tool, it checks the person's rules and, if needed, creates a request. The server accepts an answer only if the phone has signed it over a hash of the exact arguments, and you get that hash back to compare before anything runs. It was built for MCP (Model Context Protocol) tool calls going through a gateway, and any app or API can use it through the SDK and signed webhooks.</p>
+        <p>If you'd rather not hold a connection open, a signed webhook reaches your server within seconds of a decision (there isn't one when a request expires). Install the SDK from the repository; it isn't on npm.</p>
+        <p><a class="link" href="https://github.com/avijeett007/agentaction">Source on GitHub</a></p>
+      </div>
+      <div class="code" role="region" aria-label="Example code" tabindex="0">
+<pre><code><span class="c-k">const</span> key = <span class="c-s">'gmail/GMAIL_SEND_EMAIL'</span>;
+<span class="c-k">const</span> { gated } = <span class="c-k">await</span> agentaction.evaluate(user.id, key);
+<span class="c-k">if</span> (!gated) <span class="c-k">return</span> sendEmail(args);
+
+<span class="c-k">const</span> argsHash = hashArgs(args);
+<span class="c-k">let</span> { request } = <span class="c-k">await</span> agentaction.createRequest({
+  externalId: user.id,
+  actorLabel: <span class="c-s">'Sales assistant'</span>,
+  resourceKey: key,
+  title: <span class="c-s">'Send email via Gmail'</span>, <span class="c-c">// shown on the lock screen</span>
+  fields: [{ label: <span class="c-s">'To'</span>, value: <span class="c-s">'214 customers'</span> }],
+  argsHash,
+});
+<span class="c-k">while</span> (request.status === <span class="c-s">'pending'</span>) {
+  request = <span class="c-k">await</span> agentaction.waitForRequest(request.id);
+}
+<span class="c-k">const</span> ok = request.status === <span class="c-s">'approved'</span>
+  &amp;&amp; request.argsHash === argsHash;
+<span class="c-k">if</span> (ok) <span class="c-k">return</span> sendEmail(args);
+<span class="c-k">throw new</span> Error(<span class="c-s">`Not sent: ${request.status}`</span>);</code></pre>
+      </div>
+    </article>
+
+    <article class="who who--ent" id="for-enterprise">
+      <div class="who__text">
+        <p class="who__tag">Larger organisations</p>
+        <h3 class="h3">Company-wide rules for what AI agents can do on their own.</h3>
+        <p>Set default rules for your organisation and lock the ones people mustn't switch off, such as approval before anything is deleted from a shared drive. Each decision is signed on the approver's phone.</p>
+        <p>The server, SDK and phone app are open source, so you can run the server on your own infrastructure with Docker and Postgres. If the approval service can't be reached, the integrations so far are built to refuse the action rather than let it through.</p>
+        <p class="who__gaps">Not built yet: single sign-on, approver roles or two-person approval, an admin console, key rotation, rate limiting and per-organisation quotas. They're on the roadmap.</p>
+        <p><a class="btn btn--primary" href="https://sonti.io/#booking">Talk to Sonti, our setup partner</a></p>
+      </div>
+      <dl class="spec" aria-label="What an organisation controls">
+        <div><dt>Time to answer</dt><dd>5 to 60 minutes (10 by default)</dd></div>
+        <div><dt>Approve for longer</dt><dd>Up to 8 hours (1 hour by default), or switched off</dd></div>
+        <div><dt>Phones per person</dt><dd>1 to 5 (5 by default)</dd></div>
+        <div><dt>Compulsory approvals</dt><dd>Chosen by an admin; people can add more but can't remove these</dd></div>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<!-- ===================================================== why a phone -->
+<section class="band band--ink" id="why-a-phone" aria-labelledby="why-title">
+  <div class="shell why">
+    <h2 id="why-title" class="h2">Why not just ask in the chat?</h2>
+    <div class="why__body">
+      <p>Some agents already ask "Shall I go ahead?" before they act. The trouble is that the question and your answer pass through the same conversation the agent is reading. If it has been tricked by something it read, the same trick can answer yes for you, or skip the question altogether.</p>
+      <p>AgentAction asks on your phone, which the agent can't get into. The pause sits in the connection between your agent and your apps, such as Gmail, so the agent can't talk its way past it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== security -->
+<section class="band" id="security" aria-labelledby="security-title">
+  <div class="shell">
+    <h2 id="security-title" class="h2">Who sees and holds what</h2>
+    <div class="prose">
+      <p>A one-off approval covers the action exactly as it stood. If anything in it changes after you approve, it won't go ahead.</p>
+    </div>
+    <div class="grid-wrap" tabindex="0" role="region" aria-label="Who holds what">
+      <table class="holds">
+        <thead>
+          <tr><th scope="col"><span class="sr">Who</span></th><th scope="col">Short summary</th><th scope="col">Full email, file or payment</th><th scope="col">Key that approves</th><th scope="col">Record of who approved</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Your phone</th><td><i class="dot dot--on"></i><span class="sr">Yes</span></td><td><i class="dot"></i><span class="sr">No</span></td><td><i class="dot dot--on"></i><span class="sr">Yes</span></td><td><i class="dot"></i><span class="sr">No</span></td></tr>
+          <tr><th scope="row">The approval service</th><td><i class="dot dot--on"></i><span class="sr">Yes</span></td><td><i class="dot"></i><span class="sr">No</span></td><td><i class="dot"></i><span class="sr">No</span></td><td><i class="dot dot--on"></i><span class="sr">Yes</span></td></tr>
+          <tr><th scope="row">The service that does the work</th><td><i class="dot dot--on"></i><span class="sr">Yes</span></td><td><i class="dot dot--on"></i><span class="sr">Yes</span></td><td><i class="dot"></i><span class="sr">No</span></td><td><i class="dot"></i><span class="sr">No</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="holds__note">The service that does the work sends the email or makes the payment once, after you approve. If you use the portal, the portal holds your agent's email encrypted while you decide and deletes it afterwards. On a phone with a screen lock, the app won't use its key until the phone has checked it's you.</p>
+    <p class="footnote">For technical readers: the design borrows from two open standards, OpenID CIBA (confirming a request on a separate device) and OAuth Rich Authorization Requests (describing exactly what is being approved). It isn't a certified implementation of either.</p>
+  </div>
+</section>
+
+<!-- ===================================================== where first -->
+<section class="band band--tint" id="apps" aria-labelledby="first-title">
+  <div class="shell">
+    <h2 id="first-title" class="h2">Coming to these apps first</h2>
+    <div class="firsts">
+      <article class="first">
+        <img src="/assets/logos/knotie.svg" width="44" height="44" alt="" loading="lazy">
+        <div>
+          <h3>Knotie-AI Pro <a class="first__url" href="https://knotie-ai.pro">knotie-ai.pro</a></h3>
+          <p>A white-label AI platform for agencies, from the same founder as AgentAction. Its voice and chat agents work in customers' calendars, inboxes and CRMs.</p>
+        </div>
+      </article>
+      <article class="first">
+        <img src="/assets/logos/viddescriptor.svg" width="44" height="44" alt="" loading="lazy">
+        <div>
+          <h3>Viddescriptor <a class="first__url" href="https://viddescriptor.com">viddescriptor.com</a></h3>
+          <p>Viddescriptor's agent publishes videos for you, and the plan is for each one to wait for your approval before it goes out.</p>
+        </div>
+      </article>
+    </div>
+    <p class="firsts__close">More apps will follow. If you run an agent product and want approvals in it, we'll help you set it up. <a class="link" href="mailto:connect@agentaction.online">Get in touch</a></p>
+  </div>
+</section>
+
+<!-- ===================================================== questions -->
+<section class="band" id="questions" aria-labelledby="faq-title">
+  <div class="shell faq">
+    <h2 id="faq-title" class="h2">Questions about AgentAction</h2>
+    <div class="faq__list">
+      <details><summary>What is AgentAction?</summary><p>It makes your AI agent ask you, on your phone, before it does any of the actions you've chosen to check, like sending an email or making a payment.</p></details>
+      <details><summary>Does it work with the AI assistant I already use?</summary><p>Yes, if your assistant lets you add a "connector" (sometimes called an "MCP server"). You connect Gmail, your calendar and so on inside AgentAction, then add one AgentAction connection to your assistant. From then on it reaches those apps through AgentAction rather than directly, which is what lets it ask you first. Not sure about yours? Email us its name and we'll tell you.</p></details>
+      <details><summary>What does it cost?</summary><p>We haven't published prices yet. If you have a technical person, the software itself is free to run on your own server.</p></details>
+      <details><summary>Do I need to know how to code?</summary><p>No. It's all clicks in the portal; the fiddliest part is adding one connection to your agent. Developers adding it to their own product use the SDK.</p></details>
+      <details><summary>How do I stop an AI agent sending emails without asking me?</summary><p>Connect your email account in AgentAction, add the AgentAction connection to your agent and switch on approval for sending new emails, and for replies too if you want. Your agent has to reach your email through that connection, not its own direct access; from then on each of those emails waits for you.</p></details>
+      <details><summary>What happens if I don't answer?</summary><p>After 10 minutes (or your organisation's limit) the request expires and the email or payment doesn't happen. Your agent is told it wasn't approved, and it can ask again.</p></details>
+      <details><summary>Will I be asked about everything?</summary><p>No. Only the actions you choose, plus any your employer or agency has made compulsory. "Approve for longer" also lets one kind of action through for up to 1 hour (longer only if your organisation allows it).</p></details>
+      <details><summary>Can it stop my agent being tricked (prompt injection)?</summary><p>No. An agent can still be fooled by hidden text in an email or web page. But if the trick asks for an action you've marked for approval, the request still comes to your phone, and you can deny it.</p></details>
+      <details><summary>Which phones does it work on?</summary><p>Android and iPhone. Both apps are in early access, so they aren't in the App Store or Google Play; after you sign up we'll send you a link to install the app. The Android app has been tested end to end on a real phone; the iPhone app is built but hasn't been tested on a real iPhone.</p></details>
+      <details><summary>Can I use more than one phone?</summary><p>Yes, up to 5 on one account, which could include a colleague's phone. Whoever answers first decides. You can't yet require two people to approve the same action.</p></details>
+      <details><summary>Who can see my emails and files?</summary><p>Only the service that sends or saves them. The approval service gets the short summary you see on your phone, not the email itself.</p></details>
+      <details><summary>What if I lose my phone?</summary><p>Sign in at the portal, remove the lost phone and pair your new one. A removed phone can't approve anything.</p></details>
+      <details><summary>Who makes it?</summary><p>Kno2gether Labs. It's built by Avijit Sarkar, and Sonti, an AI engineering agency we work with, sets it up for larger organisations.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== try it -->
+<section class="band band--start" id="try" aria-labelledby="try-title">
+  <div class="shell try">
+    <div class="try__intro">
+      <h2 id="try-title" class="start__title">Set up your first approval.</h2>
+      <p>Choose the one action that would hurt most if it went wrong. For a lot of people that's a new email to customers; for a shop it might be refunds.</p>
+      <div class="hero__actions">
+        <a class="btn btn--primary" href="https://portal.agentaction.online">Create your account</a>
+        <a class="btn btn--quiet" href="mailto:connect@agentaction.online">Email us</a>
+      </div>
+    </div>
+    <ol class="try__steps">
+      <li><b>Create your account</b> at <a href="https://portal.agentaction.online">portal.agentaction.online</a>.</li>
+      <li><b>Connect the apps your agent uses</b>, like Gmail or Google Calendar, and add the AgentAction connection to your agent.</li>
+      <li><b>Install the phone app and pair it</b> by scanning the QR code in the portal. It isn't in the app stores yet, so we'll send you a link to install it.</li>
+      <li><b>Switch on approval</b> for that first action, then see how often your agent actually asks.</li>
+      <li class="try__help">Stuck on a step? Email <a href="mailto:connect@agentaction.online">connect@agentaction.online</a> and we'll walk you through it.</li>
+    </ol>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="shell footer__grid">
+    <div>
+      <a class="wordmark wordmark--light" href="/" aria-label="AgentAction home">
+        <svg class="wordmark__mark" viewBox="0 0 128 128" aria-hidden="true"><path d="M86 20H40a20 20 0 0 0-20 20v48a20 20 0 0 0 20 20h48a20 20 0 0 0 20-20V60" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round"/><path d="M46 66l18 18L110 24" fill="none" stroke="#2FD98B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>AgentAction</span>
+      </a>
+      <p>A Kno2gether Labs product.</p>
+    </div>
+    <nav aria-label="Footer">
+      <a href="#how-it-works">How it works</a>
+      <a href="#who-its-for">Who it's for</a>
+      <a href="#security">Security</a>
+      <a href="#questions">Questions</a>
+      <a href="https://github.com/avijeett007/agentaction">GitHub</a>
+    </nav>
+    <div>
+      <p><a href="mailto:connect@agentaction.online">connect@agentaction.online</a></p>
+      <p>Enterprise and setup: <a href="https://sonti.io">Sonti</a></p>
+      <p>Built by <a href="https://www.linkedin.com/in/avijit-sarkar-aabb2524/">Avijit Sarkar</a>.</p>
+    </div>
+  </div>
+  <div class="shell footer__legal">© 2026 Kno2gether Labs Ltd. Source code under the Apache 2.0 licence.</div>
+</footer>
+</body>
+</html>

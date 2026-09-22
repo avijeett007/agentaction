@@ -139,7 +139,7 @@ export function SettingsScreen({
             autoCapitalize="words"
             autoCorrect={false}
             maxLength={64}
-            placeholder="Avijit’s iPhone"
+            placeholder="Sam’s iPhone"
           />
           <Button
             title="Save name"

@@ -250,14 +250,50 @@ export async function activeGrant(
   return pickMostSpecific(rows, keys) ?? null;
 }
 
+/** The windows a phone may choose between, shortest first. */
+export const GRANT_WINDOWS_SEC: readonly number[] = config.grantWindowChoicesSec;
+
+/** Is this a window we offer at all? Anything else is refused, never rounded. */
+export function isGrantWindow(windowSec: number): boolean {
+  return GRANT_WINDOWS_SEC.includes(windowSec);
+}
+
+export interface GrantWindow {
+  /** Seconds that will actually be granted. 0 means no grant at all. */
+  windowSec: number;
+  /** True when the tenant ceiling shortened what the phone asked for. */
+  clamped: boolean;
+  /** The ceiling that applied, so the answer can say why. */
+  maxWindowSec: number;
+}
+
+/**
+ * What a tenant will actually allow, given what the phone asked for.
+ *
+ * The ceiling belongs to the agency, not to the phone and not to the
+ * integrator: an agency running a bank can cap every one of its customers at
+ * five minutes, and a customer who taps "8 hours" gets five. The caller is
+ * told, rather than silently handed a shorter window than the screen promised.
+ * A ceiling of 0 turns windows off entirely — the approval still stands, it
+ * just covers the one call.
+ */
+export function clampGrantWindow(requestedSec: number, tenantMaxSec: number): GrantWindow {
+  const ceiling = Math.max(0, Math.floor(tenantMaxSec));
+  const requested = Math.max(0, Math.floor(requestedSec));
+  const windowSec = Math.min(requested, ceiling);
+  return { windowSec, clamped: windowSec < requested, maxWindowSec: ceiling };
+}
+
 /**
  * "Allow this tool without asking for a while", created when a phone approves
- * with scope `window`. The window is the server's, not the caller's, so an
- * integrator cannot widen it.
+ * with scope `window`. The length is the one the phone signed for, already
+ * clamped by `clampGrantWindow` — an integrator never gets to widen it, and a
+ * caller that names nothing gets the server's default.
  */
 export async function createGrant(
   subjectId: string,
   resourceKey: string,
+  windowSec: number = config.grantWindowSec,
   now: Date = new Date(),
 ): Promise<Grant> {
   return prisma.grant.create({
@@ -265,7 +301,7 @@ export async function createGrant(
       id: randomId('grn'),
       subjectId,
       resourceKey,
-      expiresAt: new Date(now.getTime() + config.grantWindowSec * 1000),
+      expiresAt: new Date(now.getTime() + windowSec * 1000),
     },
   });
 }
@@ -287,3 +323,48 @@ export async function lockedOnRule(
   const applies = pickMostSpecific(rows, keys);
   return applies && applies.locked && applies.enabled ? applies : null;
 }
+
+/* ---------------------------------------------------------------------------
+ * Where "intelligent decisioning" would go
+ *
+ * The enterprise ask is to cut approval fatigue by answering the obvious cases
+ * without ringing a phone — the fourteenth identical appointment reminder of
+ * the morning, to a number the customer has mailed a hundred times before.
+ *
+ * The seam is `decide()` above, and only there. It is already the single
+ * chokepoint every gated call passes through, it is pure, and it returns a
+ * `reason` the portal and the audit trail already render. A model-backed mode
+ * would slot in as one more precedence step, between the grant check and the
+ * locked-rule check, returning `{ gated: false, reason: 'auto' }` — never
+ * `gated: true`, because a machine that can *invent* approval requests is a
+ * machine that can train people to tap through them. It may only ever answer
+ * the question "is this so plainly routine that we need not ask?"; a "no" from
+ * it has to mean "ask the human", not "refuse".
+ *
+ * What it would need, none of which exists yet:
+ *
+ *  - History. We store `AuditEvent` rows and one `Decision` per request, but
+ *    nothing queryable per `(subject, resourceKey, argument shape)`. Deciding
+ *    "they always say yes to this" needs the shape, and today the server holds
+ *    only `argsHash` — deliberately, so it cannot read the arguments. Either
+ *    the integrator starts sending structured, non-sensitive features, or this
+ *    can only ever reason about the hash, which means exact repeats and
+ *    nothing more. That choice is a privacy decision, not a modelling one.
+ *  - A tenant switch and a tier gate, with a default of off, in the same shape
+ *    as `Policy.locked` — an agency must be able to forbid it outright for a
+ *    customer, and a customer must be able to turn it off for themselves.
+ *  - A ceiling on what it may wave through: per-window counts, a value or
+ *    risk cap from the integrator, and never a resource key the agency has
+ *    locked on. `clampGrantWindow` is the pattern to copy.
+ *  - An audit story that is honest about it: `request.autodecided` rows, the
+ *    inputs that led there, and a visible list in the app the owner can scroll
+ *    — "here is what we did not ask you about". Without that, this feature is
+ *    indistinguishable from the approval step quietly not running.
+ *  - An answer to the obvious attack: an agent that discovers the auto-allowed
+ *    shape and drives everything through it. Whatever ships, the phone must
+ *    still see a sample, and a human must still be able to say "stop deciding
+ *    for me" in one tap.
+ *
+ * Nothing here is built. It is written down so the next person adds it at the
+ * chokepoint rather than sprinkling exceptions through the routes.
+ * ------------------------------------------------------------------------- */

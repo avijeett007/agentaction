@@ -86,6 +86,8 @@ everything in this repository is in service of it.
 | `sdk/` | `@agentaction/sdk` — the typed client an integrator uses, plus webhook verification and the canonical argument hash. |
 | `app/` | The phone app. Expo / React Native, iOS and Android. Pairing, the pending list, the approval screen, settings. See [app/README.md](app/README.md). |
 | `brand/` | The mark, the wordmark and the palette. See [brand/README.md](brand/README.md). |
+| `docs/` | [Running it in production](docs/production.md) (Docker, Postgres, Supabase, Coolify, several instances), [multi-tenancy](docs/multi-tenancy.md) (Enterprise), and the [device test plan](docs/device-smoke.md). |
+| `site/` | The landing page at agentaction.online. |
 
 The approval server never executes anything. It decides *who approved what*.
 You hold the arguments and you run the action.
@@ -257,7 +259,7 @@ x-agentaction-signature: t=1789939765,v1=12bb9afc7e562c4db933dc3712079…
 
 {"type":"request.decided","requestId":"req_65c5…","subjectExternalId":"cus_1842",
  "resourceKey":"gmail/GMAIL_SEND_EMAIL","status":"approved","decisionScope":"once",
- "argsHash":"a15a264f…","decidedAt":"2026-09-20T21:29:22.784Z"}
+ "decisionWindowSec":null,"argsHash":"a15a264f…","decidedAt":"2026-09-20T21:29:22.784Z"}
 ```
 
 Verify it against the **raw** body before you trust a word of it:
@@ -277,7 +279,10 @@ arguments you parked, re-check whatever you would normally check (the token is
 still valid, the scope still covers it, the customer can still pay for it), and
 execute. `decisionScope: "window"` means the person also said "and don't ask
 again for a while", so the next identical call comes back ungated with
-`reason: "grant"`.
+`reason: "grant"`. `decisionWindowSec` says for how long: the person picks 5
+minutes, 15 minutes, 1 hour or 8 hours on their phone, and the agency's own
+ceiling (`maxGrantWindowSec`, an hour unless it says otherwise) may shorten
+it. A bank can cap every customer at five minutes, or at nothing.
 
 If AgentAction is unreachable while a rule is on, **fail closed**: refuse the
 tool call. An approval step that disappears under load is not an approval step.
@@ -290,10 +295,15 @@ The SDK marks that case for you — `AgentActionError.unavailable`.
   and is stored with `requireAuthentication`, so the operating system releases
   it only after Face ID or a fingerprint. The server stores public halves only.
 - **The signature covers the arguments.** A decision signs
-  `agentaction.decision.v1 | requestId | approved/denied | once/window |
-  argsHash | signedAt`, using the hash the *server* holds, not one the caller
-  supplied. A decision cannot be replayed onto a different call, and nobody can
-  swap the arguments between the screen and the execution.
+  `agentaction.decision.v2 | requestId | approved/denied | once/window |
+  windowSec | argsHash | signedAt`, using the hash the *server* holds, not one
+  the caller supplied. A decision cannot be replayed onto a different call, and
+  nobody can swap the arguments between the screen and the execution.
+- **The signature covers how long it lasts.** `windowSec` is inside the signed
+  message, so a five-minute approval cannot be turned into an eight-hour one
+  in flight. `once` signs a literal `0` rather than omitting the field, so
+  there is one message shape and nothing to guess. The server accepts the four
+  offered durations and refuses any other value outright.
 - **Signed calls expire.** Device signatures and decisions are refused outside
   a 120-second window by default (`SIGNATURE_SKEW_SEC`).
 - **Webhooks are HMAC-signed** over the exact bytes sent, with a timestamp and
@@ -320,19 +330,21 @@ the agent read on the internet.
 
 This is Phase 1. It is honest work, well tested, and not yet battle-worn.
 
-- 292 automated tests pass: 188 for the server (including every endpoint
-  through supertest), 12 for the SDK, 92 for the app.
-- **Partly proven on real hardware.** An Android phone has paired against a
-  live server and seen real requests arrive; a gated tool call has been parked
-  by a real gateway, with the code and expiry coming from the server and the
-  argument hash matching byte-for-byte. What has *not* yet been done on a
-  device is the second half: approving with a fingerprint and watching the
-  call execute. Push notifications need Firebase or APNs credentials per
-  installation and had not been delivered at the time of writing. The
-  walkthrough is in [TESTING.md](TESTING.md).
-- **One tenant per deployment, in practice.** The API key *is* the tenant.
-  Giving each partner or brand its own tenant key, threaded through the portal
-  and the gateway, is the next piece of work.
+- 331 automated tests: 211 for the server (including every endpoint through
+  supertest), 17 for the SDK, 103 for the app.
+- **Proven end to end on real hardware.** An Android phone paired against a
+  live server; an agent's email-sending tool call was parked by a real gateway;
+  the phone showed it, it was approved with a fingerprint, and the gateway sent
+  the email once and handed the result back to the waiting agent — about 20
+  seconds from request to result, including the time taken to approve. iOS has not yet been run on a device, and
+  push notifications have not yet been seen arriving on one (the app shows
+  waiting requests when opened). The walkthrough is in [TESTING.md](TESTING.md).
+- **Production-ready packaging.** A Docker image, Postgres (including
+  Supabase), and any number of instances behind a load balancer — see
+  [docs/production.md](docs/production.md).
+- **Many organisations on one server.** One tenant per organisation, created
+  by the operator — see [docs/multi-tenancy.md](docs/multi-tenancy.md). Key
+  rotation without re-provisioning is not built yet.
 - **iOS needs one interactive build.** Apple requires a signed provisioning
   profile naming each device, and EAS has to log in to create it.
 - **No rate limiting in the server.** Put it behind something that has some.
@@ -347,33 +359,49 @@ This is Phase 1. It is honest work, well tested, and not yet battle-worn.
 
 ## Editions
 
-The open-source edition is the whole thing. Self-host the server, build the
-app, and nothing is withheld or time-limited.
+**Community** — this repository, Apache-2.0: the server, the SDK and the phone
+app, with nothing withheld or time-limited. Self-host it for your own
+organisation.
 
-A managed cloud edition is planned for teams who would rather not run a server:
-hosted tenants, provisioning, quotas and support. That edition does not exist
-yet, and will be described here when it does rather than promised now.
+**Enterprise** — running AgentAction for **many organisations on one server**
+(multi-tenancy: a tenant per organisation, each with its own brand, rules,
+people, phones and webhook), with Kno2gether Labs behind it: onboarding, an SLA,
+and help designing the isolation for your platform. A hosted cloud edition, so
+you run no server at all, is planned and will be described here when it exists.
+See [docs/multi-tenancy.md](docs/multi-tenancy.md).
 
-What it will **not** be is a gate on notifications. A self-hosted server can
-push to the published app on its own — Expo accepts a send to a push token
-without any credential of ours, which we checked rather than assumed. What a
-company does need its own Apple and Google accounts for is a *branded* app under
-its own name in the stores; the protocol is identical either way.
+To be plain about what that label means: the multi-tenant code is in this
+repository under Apache-2.0 like everything else, and you may run it. Enterprise
+is the support, hosting and expertise around it, not a licence to use it.
+
+Neither edition gates notifications. A self-hosted server can push to the
+published app on its own — Expo accepts a send to a push token without any
+credential of ours, which we checked rather than assumed. What a company does
+need its own Apple and Google accounts for is a *branded* app under its own name
+in the stores; the protocol is identical either way.
 
 ## Who builds this
 
-AgentAction is built by [Sonti](https://sonti.io), a security-focused AI
-engineering agency. We build agent systems for other people, which is how we
-came to need this. If you would rather have it deployed, integrated and
-operated for you — or want the same review applied to the agents you already
-run — that is the work we do.
+AgentAction is a product of **Kno2gether Labs LTD**, which owns the copyright,
+the name and the mark. It came out of building agent systems that needed a
+human in front of the dangerous calls.
+
+If you would rather have it deployed, integrated and operated for you — or want
+the same review applied to the agents you already run — that work is delivered
+by [Sonti](https://sonti.io), an AI engineering agency we work with. Book a
+conversation there; the product itself stays with Kno2gether Labs.
 
 ## Licence
 
-Not yet decided. `package.json` currently says `UNLICENSED`, which means no
-licence has been granted, and the MIT file under `app/` belongs to the Expo
-template rather than to this project. A licence has to land before anyone
-outside can use, fork or contribute to this — please ask before you rely on it.
+[Apache-2.0](LICENSE). Run it, change it, use it commercially, including inside
+your own product — no fee, no separate agreement.
+
+The server, the SDK and the phone app are all Apache-2.0. [NOTICE](NOTICE)
+says plainly what that covers and what it does not. In short: all of the code
+here, including multi-tenancy, is yours to run, so you may run as many tenants
+as you like on your own installation. What is sold separately is the Enterprise
+support and the hosted service around it, and the licence does not grant the
+AgentAction name and mark.
 
 ## Getting help
 
@@ -385,6 +413,6 @@ whether the build was `preview` or from a store.
 If you are reporting something security-sensitive, say so in the first line and
 do not include real arguments, tokens or customer data.
 
-Operational notes for running this in production live in
-[server/README.md](server/README.md), and the device test plan in
-[TESTING.md](TESTING.md).
+Running it in production: [docs/production.md](docs/production.md). Many
+organisations on one server: [docs/multi-tenancy.md](docs/multi-tenancy.md).
+The device test plan: [TESTING.md](TESTING.md).

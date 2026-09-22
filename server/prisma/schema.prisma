@@ -32,6 +32,10 @@ model Tenant {
   deviceCap      Int      @default(5)
   /// Default lifetime of an approval request, in seconds (300..3600).
   requestTtlSec  Int      @default(600)
+  /// The longest "allow for a while" window this tenant will accept, in seconds.
+  /// The phone is told this number and offers nothing longer; the server clamps
+  /// anything longer that arrives anyway. 0 means this tenant never grants one.
+  maxGrantWindowSec Int   @default(3600)
   disabled       Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -129,6 +133,8 @@ model ApprovalRequest {
   decidedAt  DateTime?
   /// once | window — whether approval also created a grant.
   decisionScope String?
+  /// Seconds actually granted, after the tenant ceiling. Null when nothing was.
+  decisionWindowSec Int?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -150,6 +156,9 @@ model Decision {
   decision  String
   /// once | window
   scope     String   @default("once")
+  /// The window the phone signed for, in seconds; 0 for once. This is what was
+  /// *asked* for — the granted length may be shorter if the tenant caps it.
+  windowSec Int      @default(0)
   /// Base64url Ed25519 signature over the canonical decision string.
   signature String
   signedAt  DateTime
@@ -185,7 +194,8 @@ model Policy {
   @@map("policies")
 }
 
-/// "Allow this tool for 15 minutes", created by approving with scope=window.
+/// "Allow this tool for the next little while", created by approving with
+/// scope=window. How long is the phone's choice, capped by the tenant.
 model Grant {
   id          String   @id
   subjectId   String

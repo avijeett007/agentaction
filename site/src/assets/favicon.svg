@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="AgentAction">
+  <defs>
+    <linearGradient id="favBg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#141C33"/><stop offset="1" stop-color="#080C16"/>
+    </linearGradient>
+    <linearGradient id="favEdge" x1="30" y1="32" x2="100" y2="98" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8FB0FF"/><stop offset="1" stop-color="#4C7BFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="26" fill="url(#favBg)"/>
+  <g transform="translate(64 64) scale(0.68) translate(-64 -64)">
+    <path d="M86 20H40a20 20 0 0 0-20 20v48a20 20 0 0 0 20 20h48a20 20 0 0 0 20-20V60"
+          fill="none" stroke="url(#favEdge)" stroke-width="13" stroke-linecap="round"/>
+    <path d="M46 66l18 18L110 24"
+          fill="none" stroke="#2FD98B" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

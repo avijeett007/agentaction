@@ -6,7 +6,7 @@ decided what.
 It is an Express app with Prisma in front of SQLite (development) or Postgres
 (production). It has no queue, no Redis and no background service beyond two
 timers in its own process: one that retries webhooks, one that expires requests
-nobody answered.
+nobody answered. Both are safe to run in several instances at once.
 
 **It never executes a tool call.** It is given a title, a list of labelled
 display fields and a SHA-256 hash of the arguments. The arguments themselves
@@ -14,8 +14,10 @@ stay with the integrator. That split is the point: this database can be lost,
 audited or subpoenaed without exposing what anyone's agent was actually doing,
 and a compromise of this server cannot run anything.
 
-See the [repository README](../README.md) for the whole picture, and
-[TESTING.md](../TESTING.md) for driving it from a real phone.
+See the [repository README](../README.md) for the whole picture,
+[docs/production.md](../docs/production.md) for deploying it (Docker, Postgres,
+several instances), and [TESTING.md](../TESTING.md) for driving it from a real
+phone.
 
 ## The data model
 
@@ -25,20 +27,24 @@ SQLite and Postgres — no native enums, no scalar lists, no Postgres-only types
 
 | Model | What it holds |
 |---|---|
-| `Tenant` | One integrator brand: name, logo, colour, the SHA-256 of its API key, its webhook secret and URL, its device cap (1–5) and default request lifetime. |
+| `Tenant` | One integrator brand: name, logo, colour, the SHA-256 of its API key, its webhook secret and URL, its device cap (1–5), default request lifetime, and the longest approval window it will accept (`maxGrantWindowSec`, 3600 by default, 0 to allow none). |
 | `Subject` | One of the integrator's accounts, identified by their own `externalId`, unique within the tenant. |
 | `Device` | A paired phone: two Ed25519 public keys (one for API calls, one for decisions), the Expo push token, label, platform, and when it was revoked or last seen. |
 | `PairingCode` | A single-use pairing secret, stored as a hash, with a five-minute expiry and the moment it was used. |
-| `ApprovalRequest` | One parked call: who asked, the resource key, the title, the display fields as JSON, the argument hash, a 4-digit code, status, expiry and the decision scope. |
+| `ApprovalRequest` | One parked call: who asked, the resource key, the title, the display fields as JSON, the argument hash, a 4-digit code, status, expiry, the decision scope and — when a window was granted — how many seconds it covers. |
 | `Decision` | The signed answer from one device. Unique per request — the first decision wins. |
 | `Policy` | Which tools need approval. `subjectId = null` is the agency's row (its default, and whether it is locked); a row with a `subjectId` is that customer's own choice. |
-| `Grant` | "Allow this tool without asking for a while", created by approving with scope `window`. |
+| `Grant` | "Allow this tool without asking for a while", created by approving with scope `window`. Its length is the one the phone signed for, capped by the tenant. |
 | `WebhookDelivery` | Each outbound decision webhook with its attempts, last error and next retry. |
 | `AuditEvent` | Append-only: pairings, requests, decisions, policy changes. |
 
 Statuses are plain strings so both databases agree on them:
 `ApprovalRequest.status` is `pending | approved | denied | expired`,
 `Decision.decision` is `approved | denied`, and the scope is `once | window`.
+A `window` decision also carries `windowSec` — 300, 900, 3600 or 28800, and
+nothing else. `once` carries 0. Both are inside the signed message, so the
+duration cannot be widened between the phone and this server; the tenant
+ceiling may still shorten it, and the answer says so when it does.
 
 ## The endpoints
 
@@ -63,7 +69,7 @@ branching on.
 | Endpoint | What it does |
 |---|---|
 | `GET /v1/tenants/me` | What this API key belongs to. |
-| `PATCH /v1/tenants/me` | Branding, webhook URL, device cap, default request lifetime. |
+| `PATCH /v1/tenants/me` | Branding, webhook URL, device cap, default request lifetime, and `maxGrantWindowSec` — the longest approval window this agency will accept (0–28800; 0 means none). |
 | `PUT /v1/tenants/me/subjects` | Create or update one account. Idempotent on `externalId`. |
 | `GET /v1/tenants/me/subjects/:externalId` | One account and how many live devices it has. |
 | `POST /v1/pairings` | Mint the payload the portal renders as a QR code. Upserts the subject on the way through, so "add a phone" is one call. |
@@ -101,8 +107,8 @@ over `METHOD\npath\ntimestamp\nsha256(body)`, and a signature more than
 | `PATCH /v1/devices/me` | Rename this phone, or refresh (or clear) its push token. |
 | `DELETE /v1/devices/me` | Unpair this phone from Settings. |
 | `GET /v1/device/requests` | What this phone is being asked to decide. Carries no argument values — only titles. |
-| `GET /v1/device/requests/:id` | One request with its display fields, for the approval screen. |
-| `POST /v1/device/requests/:id/decision` | Approve or deny. Signed by the *approval* key, over the argument hash this server holds, so the decision cannot be moved to another call. |
+| `GET /v1/device/requests/:id` | One request with its display fields, for the approval screen. Also carries `maxWindowSec`, so the phone offers no duration this tenant would refuse. |
+| `POST /v1/device/requests/:id/decision` | Approve or deny, with `scope` and `windowSec`. Signed by the *approval* key, over the argument hash this server holds *and* the window, so a decision can be moved neither to another call nor to a longer one. The answer carries `grant`, saying what was actually granted and whether the tenant ceiling shortened it. |
 
 ## Running it locally
 
@@ -168,12 +174,13 @@ code for that account.
 | `EXPO_PUSH_DISABLED` | `false` | Set `true` to send nothing at all. Local development and the test suite do. **Push is on by default**: an approval product that silently notifies nobody is the one failure it cannot afford. |
 | `PAIRING_TTL_SEC` | `300` | How long a pairing code is valid. |
 | `SIGNATURE_SKEW_SEC` | `120` | Allowed clock skew on device signatures and signed decisions. |
-| `GRANT_WINDOW_SEC` | `900` | How long an "approve for a while" grant lasts. The server's number, never the caller's. |
+| `GRANT_WINDOW_SEC` | `900` | Fallback length for a grant created without a named window. Phones always name one, so this is a default of last resort, not the window they get. |
 
 Some bounds are fixed in code rather than configured, because a careless value
 would quietly disable the protection: a request lifetime is clamped to 300–3600
-seconds whatever a tenant asks for, and no tenant may raise its device cap
-above five.
+seconds whatever a tenant asks for, no tenant may raise its device cap above
+five, the approval windows on offer are exactly 300, 900, 3600 and 28800
+seconds, and no tenant may set `maxGrantWindowSec` above 28800.
 
 Anything non-numeric or negative in the numeric variables falls back to the
 default rather than failing to boot.

@@ -108,6 +108,49 @@ describe('PATCH /v1/tenants/me', () => {
     });
   });
 
+  describe('clearing branding', () => {
+    // An agency that removes its logo or colour must be able to say so: a
+    // field left out is left alone, so without an explicit null the phone
+    // would keep showing the old logo for good.
+    const patch = (apiKey: string, body: object) =>
+      request(app).patch('/v1/tenants/me').set('authorization', `Bearer ${apiKey}`).send(body);
+
+    it('removes the logo when brandLogoUrl is null', async () => {
+      const { apiKey } = await createTenant();
+      await patch(apiKey, { brandLogoUrl: 'https://cdn.example.com/logo.png' });
+
+      const res = await patch(apiKey, { brandLogoUrl: null });
+
+      expect(res.status).toBe(200);
+      expect(res.body.tenant.brandLogoUrl).toBeNull();
+    });
+
+    it('puts the default colour back when brandColor is null', async () => {
+      const { apiKey } = await createTenant();
+      await patch(apiKey, { brandColor: '#ff0000' });
+
+      const res = await patch(apiKey, { brandColor: null });
+
+      expect(res.status).toBe(200);
+      expect(res.body.tenant.brandColor).toBe('#3B82F6');
+    });
+
+    it('leaves the logo alone when the field is left out', async () => {
+      const { apiKey } = await createTenant();
+      await patch(apiKey, { brandLogoUrl: 'https://cdn.example.com/logo.png' });
+
+      const res = await patch(apiKey, { brandName: 'Renamed' });
+
+      expect(res.body.tenant.brandLogoUrl).toBe('https://cdn.example.com/logo.png');
+    });
+
+    it('still refuses a null brand name, which the phone cannot do without', async () => {
+      const { apiKey } = await createTenant();
+      const res = await patch(apiKey, { brandName: null });
+      expect(res.status).toBe(400);
+    });
+  });
+
   it('refuses a device cap outside the allowed range', async () => {
     const { apiKey } = await createTenant();
     const res = await request(app)
@@ -115,6 +158,50 @@ describe('PATCH /v1/tenants/me', () => {
       .set('authorization', `Bearer ${apiKey}`)
       .send({ deviceCap: 99 });
     expect(res.status).toBe(400);
+  });
+
+  it('lets an agency cap how long an approval may last', async () => {
+    const { apiKey } = await createTenant();
+
+    // The bank: five minutes, for every one of its customers.
+    const capped = await request(app)
+      .patch('/v1/tenants/me')
+      .set('authorization', `Bearer ${apiKey}`)
+      .send({ maxGrantWindowSec: 300 });
+    expect(capped.status).toBe(200);
+    expect(capped.body.tenant.maxGrantWindowSec).toBe(300);
+
+    // And the agency that wants the full eight hours can have them.
+    const raised = await request(app)
+      .patch('/v1/tenants/me')
+      .set('authorization', `Bearer ${apiKey}`)
+      .send({ maxGrantWindowSec: 28800 });
+    expect(raised.body.tenant.maxGrantWindowSec).toBe(28800);
+
+    // Zero is a real answer: this agency grants no windows at all.
+    const none = await request(app)
+      .patch('/v1/tenants/me')
+      .set('authorization', `Bearer ${apiKey}`)
+      .send({ maxGrantWindowSec: 0 });
+    expect(none.body.tenant.maxGrantWindowSec).toBe(0);
+  });
+
+  it('refuses a ceiling above the operator own, or a negative one', async () => {
+    const { apiKey } = await createTenant();
+    for (const maxGrantWindowSec of [28801, -1, 1.5]) {
+      const res = await request(app)
+        .patch('/v1/tenants/me')
+        .set('authorization', `Bearer ${apiKey}`)
+        .send({ maxGrantWindowSec });
+      expect(res.status).toBe(400);
+      expect(JSON.stringify(res.body.error.details)).toContain('maxGrantWindowSec');
+    }
+  });
+
+  it('starts every new tenant at an hour', async () => {
+    const { apiKey } = await createTenant();
+    const res = await request(app).get('/v1/tenants/me').set('authorization', `Bearer ${apiKey}`);
+    expect(res.body.tenant.maxGrantWindowSec).toBe(3600);
   });
 });
 

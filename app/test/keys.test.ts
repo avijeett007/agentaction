@@ -102,7 +102,8 @@ describe('signWithDeviceKey', () => {
 describe('signWithApprovalKey, keychain mode', () => {
   it('reads the key through the OS prompt and verifies against the approval key', async () => {
     const keys = await createKeys();
-    const message = 'agentaction.decision.v1\nreq_1\napproved\nonce\nhash\n2026-09-20T00:00:00.000Z';
+    const message =
+      'agentaction.decision.v2\nreq_1\napproved\nonce\n0\nhash\n2026-09-20T00:00:00.000Z';
 
     const { signature, protection } = await signWithApprovalKey(keys.keyRef, message, 'keychain');
 

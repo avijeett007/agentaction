@@ -4,6 +4,8 @@ import type {
   CreateApprovalRequestInput,
   CreateApprovalRequestResult,
   CreatePairingResult,
+  CreateTenantInput,
+  CreateTenantResult,
   DecisionWebhookEvent,
   DeviceSummary,
   EffectivePolicy,
@@ -11,6 +13,8 @@ import type {
   PolicyEvaluation,
   SubjectInput,
   TenantPolicy,
+  TenantSummary,
+  UpdateTenantInput,
 } from './types';
 
 export * from './types';
@@ -46,19 +50,62 @@ export interface AgentActionClientOptions {
   fetchImpl?: typeof fetch;
 }
 
+/** Where and how to send: shared by the integrator and operator clients. */
+interface Transport {
+  baseUrl: string;
+  apiKey: string;
+  timeoutMs: number;
+  retries: number;
+  fetchImpl: typeof fetch;
+}
+
+function transportFrom(options: {
+  baseUrl: string;
+  apiKey: string;
+  timeoutMs?: number;
+  retries?: number;
+  fetchImpl?: typeof fetch;
+}): Transport {
+  return {
+    baseUrl: options.baseUrl.replace(/\/+$/, ''),
+    apiKey: options.apiKey,
+    timeoutMs: options.timeoutMs ?? 5000,
+    retries: options.retries ?? 1,
+    fetchImpl: options.fetchImpl ?? globalThis.fetch,
+  };
+}
+
+export interface AgentActionOperatorOptions {
+  baseUrl: string;
+  /** The approval server's ADMIN_API_KEY. Keep it out of anything a customer can reach. */
+  adminApiKey: string;
+  timeoutMs?: number;
+  fetchImpl?: typeof fetch;
+}
+
 export class AgentActionClient {
-  private readonly baseUrl: string;
-  private readonly apiKey: string;
-  private readonly timeoutMs: number;
-  private readonly retries: number;
-  private readonly fetchImpl: typeof fetch;
+  private readonly transport: Transport;
 
   constructor(options: AgentActionClientOptions) {
-    this.baseUrl = options.baseUrl.replace(/\/+$/, '');
-    this.apiKey = options.apiKey;
-    this.timeoutMs = options.timeoutMs ?? 5000;
-    this.retries = options.retries ?? 1;
-    this.fetchImpl = options.fetchImpl ?? globalThis.fetch;
+    this.transport = transportFrom(options);
+  }
+
+  // ---- tenant -------------------------------------------------------------
+
+  /** The tenant this API key belongs to: its brand, webhook and limits. */
+  async getTenant(): Promise<TenantSummary> {
+    const res = await this.call<{ tenant: TenantSummary }>('GET', '/v1/tenants/me');
+    return res.tenant;
+  }
+
+  /**
+   * Change this tenant's brand, webhook target or limits. Only the fields
+   * given are changed. Push the brand again whenever the organisation renames
+   * itself, so the phone and the agent name the same app.
+   */
+  async updateTenant(input: UpdateTenantInput): Promise<TenantSummary> {
+    const res = await this.call<{ tenant: TenantSummary }>('PATCH', '/v1/tenants/me', input);
+    return res.tenant;
   }
 
   // ---- subjects -----------------------------------------------------------
@@ -180,68 +227,101 @@ export class AgentActionClient {
 
   // ---- transport ----------------------------------------------------------
 
-  private async call<T>(
+  private call<T>(
     method: string,
     path: string,
     body?: unknown,
     options: { timeoutMs?: number } = {},
   ): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
-    const timeoutMs = options.timeoutMs ?? this.timeoutMs;
-    // Only reads are safe to repeat: replaying a write could create a second
-    // approval request and a second push.
-    const attempts = method === 'GET' ? this.retries + 1 : 1;
-
-    let lastError: AgentActionError | undefined;
-    for (let attempt = 0; attempt < attempts; attempt++) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const res = await this.fetchImpl(url, {
-          method,
-          headers: {
-            authorization: `Bearer ${this.apiKey}`,
-            ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-          },
-          body: body === undefined ? undefined : JSON.stringify(body),
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          const payload = await safeJson(res);
-          const error = payload?.error as { code?: string; message?: string; details?: unknown };
-          const apiError = new AgentActionError(
-            error?.code ?? `http_${res.status}`,
-            error?.message ?? `Request failed with status ${res.status}`,
-            res.status,
-            error?.details,
-          );
-          // A 5xx may be a blip; a 4xx is our own fault and will not improve.
-          if (res.status >= 500 && attempt < attempts - 1) {
-            lastError = apiError;
-            continue;
-          }
-          throw apiError;
-        }
-
-        return (await safeJson(res)) as T;
-      } catch (err) {
-        if (err instanceof AgentActionError) throw err;
-        const isAbort = err instanceof Error && err.name === 'AbortError';
-        lastError = new AgentActionError(
-          isAbort ? 'timeout' : 'unavailable',
-          isAbort
-            ? `Approval server did not answer within ${timeoutMs}ms`
-            : `Could not reach the approval server: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        if (attempt === attempts - 1) throw lastError;
-      } finally {
-        clearTimeout(timer);
-      }
-    }
-
-    throw lastError ?? new AgentActionError('unavailable', 'Could not reach the approval server');
+    return send<T>(this.transport, method, path, body, options);
   }
+}
+
+/**
+ * The operator's client: the one party that creates tenants.
+ *
+ * Running AgentAction for several organisations — each with its own brand,
+ * rules, phones and webhook — means creating one tenant per organisation with
+ * the server's `ADMIN_API_KEY`. The tenant's API key and webhook secret come
+ * back from `createTenant` once and can never be read again: store both
+ * encrypted, keyed by your organisation's id, before doing anything else.
+ * See docs/multi-tenancy.md.
+ */
+export class AgentActionOperator {
+  private readonly transport: Transport;
+
+  constructor(options: AgentActionOperatorOptions) {
+    // Never retried: a repeated create would make a second tenant.
+    this.transport = transportFrom({ ...options, apiKey: options.adminApiKey, retries: 0 });
+  }
+
+  async createTenant(input: CreateTenantInput): Promise<CreateTenantResult> {
+    return send<CreateTenantResult>(this.transport, 'POST', '/v1/tenants', input);
+  }
+}
+
+async function send<T>(
+t: Transport,
+method: string,
+  path: string,
+  body?: unknown,
+  options: { timeoutMs?: number } = {},
+): Promise<T> {
+  const url = `${t.baseUrl}${path}`;
+  const timeoutMs = options.timeoutMs ?? t.timeoutMs;
+  // Only reads are safe to repeat: replaying a write could create a second
+  // approval request and a second push.
+  const attempts = method === 'GET' ? t.retries + 1 : 1;
+
+  let lastError: AgentActionError | undefined;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await t.fetchImpl(url, {
+        method,
+        headers: {
+          authorization: `Bearer ${t.apiKey}`,
+          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const payload = await safeJson(res);
+        const error = payload?.error as { code?: string; message?: string; details?: unknown };
+        const apiError = new AgentActionError(
+          error?.code ?? `http_${res.status}`,
+          error?.message ?? `Request failed with status ${res.status}`,
+          res.status,
+          error?.details,
+        );
+        // A 5xx may be a blip; a 4xx is our own fault and will not improve.
+        if (res.status >= 500 && attempt < attempts - 1) {
+          lastError = apiError;
+          continue;
+        }
+        throw apiError;
+      }
+
+      return (await safeJson(res)) as T;
+    } catch (err) {
+      if (err instanceof AgentActionError) throw err;
+      const isAbort = err instanceof Error && err.name === 'AbortError';
+      lastError = new AgentActionError(
+        isAbort ? 'timeout' : 'unavailable',
+        isAbort
+          ? `Approval server did not answer within ${timeoutMs}ms`
+          : `Could not reach the approval server: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      if (attempt === attempts - 1) throw lastError;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  throw lastError ?? new AgentActionError('unavailable', 'Could not reach the approval server');
 }
 
 /**

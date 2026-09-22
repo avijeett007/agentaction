@@ -8,6 +8,7 @@ import { ApiError } from '../lib/errors';
 import { logger } from '../logger';
 import { deviceAuth } from '../middleware/deviceAuth';
 import { recordAudit } from '../services/audit';
+import { GRANT_WINDOWS_SEC, clampGrantWindow, createGrant, isGrantWindow } from '../services/policy';
 import { sendRequestSettledPush } from '../services/push';
 import { queueDecisionWebhook } from '../services/webhooks';
 import { toApiError } from './tenants';
@@ -18,13 +19,42 @@ export const deviceRequestsRouter = Router();
 // router so a new endpoint cannot be added unauthenticated by accident.
 deviceRequestsRouter.use(deviceAuth);
 
-const decisionSchema = z.object({
-  decision: z.enum(['approved', 'denied']),
-  scope: z.enum(['once', 'window']),
-  /** Unix seconds, as a string: it is signed verbatim, so it must not be reformatted. */
-  signedAt: z.string().regex(/^\d{1,12}$/, 'signedAt must be unix seconds'),
-  signature: z.string().min(1).max(200),
-});
+const decisionSchema = z
+  .object({
+    decision: z.enum(['approved', 'denied']),
+    scope: z.enum(['once', 'window']),
+    /**
+     * How long the phone is granting, in seconds. Absent means 0, the only
+     * value `once` may carry. It is part of the signed message, so a value
+     * changed in flight fails the signature rather than widening the grant.
+     */
+    windowSec: z.number().int().nonnegative().max(config.maxGrantWindowSec).default(0),
+    /** Unix seconds, as a string: it is signed verbatim, so it must not be reformatted. */
+    signedAt: z.string().regex(/^\d{1,12}$/, 'signedAt must be unix seconds'),
+    signature: z.string().min(1).max(200),
+  })
+  // The set of windows is closed. An unlisted duration is a client that has
+  // drifted from the protocol, and guessing what it meant is how a five-minute
+  // approval turns into an afternoon of them.
+  .superRefine((body, ctx) => {
+    if (body.scope === 'once') {
+      if (body.windowSec !== 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['windowSec'],
+          message: 'A decision with scope "once" carries no window',
+        });
+      }
+      return;
+    }
+    if (!isGrantWindow(body.windowSec)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['windowSec'],
+        message: `windowSec must be one of ${GRANT_WINDOWS_SEC.join(', ')}`,
+      });
+    }
+  });
 
 /** GET /v1/device/requests — what this phone is being asked to decide. */
 deviceRequestsRouter.get('/', async (req, res, next) => {
@@ -65,6 +95,9 @@ deviceRequestsRouter.get('/:id', async (req, res, next) => {
       request: {
         ...publicRequest(request),
         brandName: device.subject.tenant.brandName,
+        // The phone offers no window longer than this, so it can never present
+        // a choice the server is going to refuse or quietly shorten.
+        maxWindowSec: device.subject.tenant.maxGrantWindowSec,
         fields: parseFields(request.fieldsJson),
       },
     });
@@ -78,7 +111,8 @@ deviceRequestsRouter.get('/:id', async (req, res, next) => {
  *
  * The signature covers the stored arguments hash, so a decision captured from
  * one call cannot be replayed onto another, and a phone cannot be tricked into
- * approving arguments it was never shown.
+ * approving arguments it was never shown. It covers `windowSec` too: how long
+ * the approval lasts is part of the decision, not a parameter of it.
  */
 deviceRequestsRouter.post('/:id/decision', async (req, res, next) => {
   try {
@@ -97,6 +131,9 @@ deviceRequestsRouter.post('/:id/decision', async (req, res, next) => {
       requestId: request.id,
       decision: body.decision,
       scope: body.scope,
+      // The window the phone showed the person. It is signed, so a decision
+      // captured on the way past cannot be stretched into a longer grant.
+      windowSec: body.windowSec,
       argsHash: request.argsHash, // Ours, never the caller's.
       signedAt: body.signedAt,
     });
@@ -116,11 +153,25 @@ deviceRequestsRouter.post('/:id/decision', async (req, res, next) => {
       throw ApiError.conflict('expired', 'This request has expired');
     }
 
+    // Nothing is granted by a denial, whatever window it carried. The phone was
+    // told the tenant ceiling when it opened this request, so clamping here
+    // should be rare — but a client that ignores it gets the short window.
+    const asked = body.decision === 'approved' ? body.windowSec : 0;
+    const allowed = clampGrantWindow(asked, device.subject.tenant.maxGrantWindowSec);
+    // What was actually done, which is what the integrator is told: a window
+    // clamped away to nothing is an approval of this one call and no more.
+    const effectiveScope = allowed.windowSec > 0 ? 'window' : 'once';
+
     // First decision wins. Every phone on the account is notified, so two people
     // can answer at once; the conditional update is what makes that safe.
     const { count } = await prisma.approvalRequest.updateMany({
       where: { id: request.id, status: 'pending' },
-      data: { status: body.decision, decidedAt: now, decisionScope: body.scope },
+      data: {
+        status: body.decision,
+        decidedAt: now,
+        decisionScope: effectiveScope,
+        decisionWindowSec: allowed.windowSec > 0 ? allowed.windowSec : null,
+      },
     });
     if (count === 0) {
       throw ApiError.conflict('already_decided', 'This request has already been decided');
@@ -132,23 +183,19 @@ deviceRequestsRouter.post('/:id/decision', async (req, res, next) => {
         requestId: request.id,
         deviceId: device.id,
         decision: body.decision,
+        // The signed answer, recorded as it was signed — not as it was clamped.
         scope: body.scope,
+        windowSec: body.windowSec,
         signature: body.signature,
         signedAt: new Date(Number(body.signedAt) * 1000),
       },
     });
 
     // "Approve for a while": a batch of identical calls then asks once.
-    if (body.decision === 'approved' && body.scope === 'window') {
-      await prisma.grant.create({
-        data: {
-          id: randomId('grn'),
-          subjectId: device.subjectId,
-          resourceKey: request.resourceKey,
-          expiresAt: new Date(now.getTime() + config.grantWindowSec * 1000),
-        },
-      });
-    }
+    const grant =
+      allowed.windowSec > 0
+        ? await createGrant(device.subjectId, request.resourceKey, allowed.windowSec, now)
+        : null;
 
     await queueDecisionWebhook(request.id);
 
@@ -179,12 +226,28 @@ deviceRequestsRouter.post('/:id/decision', async (req, res, next) => {
         requestId: request.id,
         resourceKey: request.resourceKey,
         decision: body.decision,
-        scope: body.scope,
+        scope: effectiveScope,
+        requestedWindowSec: body.windowSec,
+        windowSec: allowed.windowSec,
         deviceId: device.id,
       },
     });
 
-    res.json({ request: { id: request.id, status: body.decision, decidedAt: now } });
+    res.json({
+      request: { id: request.id, status: body.decision, decidedAt: now },
+      // Said out loud rather than silently applied: the phone promised the
+      // person a duration, and if the tenant shortened it they should be told.
+      grant:
+        body.decision === 'approved' && body.scope === 'window'
+          ? {
+              windowSec: allowed.windowSec,
+              requestedWindowSec: body.windowSec,
+              maxWindowSec: allowed.maxWindowSec,
+              clamped: allowed.clamped,
+              expiresAt: grant?.expiresAt ?? null,
+            }
+          : null,
+    });
   } catch (err) {
     next(toApiError(err));
   }

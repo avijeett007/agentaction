@@ -14,8 +14,19 @@ export interface Config {
   minRequestTtlSec: number;
   maxRequestTtlSec: number;
   maxDeviceCap: number;
-  /** How long a "allow for a while" grant lasts. */
+  /** How long an "allow for a while" grant lasts when nobody names a window. */
   grantWindowSec: number;
+  /**
+   * The windows a phone may choose between, shortest first. The set is closed
+   * on purpose: a free-form number would have to be re-validated on every hop,
+   * while a fixed list is one a tenant, an auditor and a phone screen can all
+   * agree on. Anything else is refused rather than rounded.
+   */
+  grantWindowChoicesSec: readonly number[];
+  /** The ceiling a tenant may raise its own maximum to. */
+  maxGrantWindowSec: number;
+  /** What a tenant's ceiling is when it does not say — must match the schema default. */
+  defaultMaxGrantWindowSec: number;
 }
 
 function int(value: string | undefined, fallback: number): number {
@@ -36,4 +47,7 @@ export const config: Config = {
   maxRequestTtlSec: 3600,
   maxDeviceCap: 5,
   grantWindowSec: int(process.env.GRANT_WINDOW_SEC, 900),
+  grantWindowChoicesSec: [300, 900, 3600, 28800],
+  maxGrantWindowSec: 28800,
+  defaultMaxGrantWindowSec: 3600,
 };

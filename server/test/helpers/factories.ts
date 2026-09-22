@@ -2,7 +2,15 @@ import { prisma } from '../../src/prisma';
 import { generateApiKey, randomId, randomSecret } from '../../src/lib/crypto';
 import { makeKeyPair, type TestKeyPair } from './keys';
 
-export async function createTenant(overrides: Partial<{ deviceCap: number; webhookUrl: string; requestTtlSec: number }> = {}) {
+export async function createTenant(
+  overrides: Partial<{
+    deviceCap: number;
+    webhookUrl: string;
+    requestTtlSec: number;
+    /** The longest "approve for a while" window this agency accepts. */
+    maxGrantWindowSec: number;
+  }> = {},
+) {
   const { key, hash } = generateApiKey();
   const tenant = await prisma.tenant.create({
     data: {
@@ -15,6 +23,7 @@ export async function createTenant(overrides: Partial<{ deviceCap: number; webho
       webhookUrl: overrides.webhookUrl ?? null,
       deviceCap: overrides.deviceCap ?? 5,
       requestTtlSec: overrides.requestTtlSec ?? 600,
+      maxGrantWindowSec: overrides.maxGrantWindowSec ?? 3600,
     },
   });
   return { tenant, apiKey: key };

@@ -339,6 +339,54 @@ export function Button({
   );
 }
 
+/**
+ * One choice among a few, sized for a thumb.
+ *
+ * A chip is the smallest thing in this app that commits to something, so it
+ * carries the same 44pt target and the same pressed state as a full button —
+ * the only difference is that several of them fit on a line, which is the
+ * whole reason to reach for one.
+ */
+export function Chip({
+  label,
+  onPress,
+  theme,
+  disabled,
+  busy,
+  accessibilityLabel,
+}: {
+  label: string;
+  onPress: () => void;
+  theme?: Theme;
+  disabled?: boolean;
+  busy?: boolean;
+  accessibilityLabel?: string;
+}) {
+  const accent = theme ? theme.legible : palette.brand;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: Boolean(disabled || busy) }}
+      disabled={disabled || busy}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        disabled && !busy ? styles.buttonDisabled : null,
+        pressed ? styles.buttonPressed : null,
+      ]}
+    >
+      {busy ? (
+        <ActivityIndicator color={accent} size="small" />
+      ) : (
+        <Text style={[styles.chipText, { color: accent }]} numberOfLines={1}>
+          {label}
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
 /** A tappable list row: colour rail, stacked text, whatever sits on the right. */
 export function Row({
   tone,
@@ -658,6 +706,19 @@ const styles = StyleSheet.create({
   buttonPressedFilled: { opacity: 0.78 },
   buttonWithCaption: { gap: space.xs },
   buttonCaption: { ...type.meta, paddingHorizontal: space.xs },
+
+  chip: {
+    minHeight: 44,
+    minWidth: 76,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: palette.line,
+    backgroundColor: palette.raised,
+    paddingHorizontal: space.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipText: { fontSize: 15, fontWeight: '600', letterSpacing: -0.1 },
 
   row: {
     flexDirection: 'row',

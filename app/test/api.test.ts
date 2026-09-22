@@ -136,6 +136,7 @@ describe('decide', () => {
     const input = {
       decision: 'approved' as const,
       scope: 'window' as const,
+      windowSec: 900,
       signedAt: '2026-09-20T00:00:00.000Z',
       signature: 'APPROVAL_SIGNATURE',
     };
@@ -159,7 +160,7 @@ describe('updateSelf and unpair', () => {
   it('PATCHes the device with a JSON body', async () => {
     const { client, fetchImpl, signed } = harness(emptyResponse(200));
 
-    await client.updateSelf({ label: "Avijit's iPhone", pushToken: 'ExponentPushToken[x]' });
+    await client.updateSelf({ label: "Sam's iPhone", pushToken: 'ExponentPushToken[x]' });
 
     const [url, init] = fetchImpl.mock.calls[0];
     expect(url).toBe('https://approvals.example.com/v1/devices/me');
@@ -230,7 +231,7 @@ describe('errors', () => {
 describe('registerDevice', () => {
   it('posts the pairing secret and both public keys, unsigned', async () => {
     const body = {
-      device: { id: 'dev_1', label: "Avijit's iPhone" },
+      device: { id: 'dev_1', label: "Sam's iPhone" },
       subject: { label: 'ops@acme.com', externalId: 'cus_1' },
       tenant: { brandName: 'Acme', brandLogoUrl: null, brandColor: '#123456' },
     };
@@ -242,7 +243,7 @@ describe('registerDevice', () => {
         secret: 'pairing-secret',
         devicePubKey: 'DPK',
         approvalPubKey: 'APK',
-        label: "Avijit's iPhone",
+        label: "Sam's iPhone",
         platform: 'ios',
       },
       fetchImpl,

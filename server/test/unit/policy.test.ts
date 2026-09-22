@@ -2,10 +2,13 @@ import { prisma } from '../../src/prisma';
 import { randomId } from '../../src/lib/crypto';
 import { config } from '../../src/config';
 import {
+  GRANT_WINDOWS_SEC,
   activeGrant,
   candidateKeys,
+  clampGrantWindow,
   createGrant,
   evaluateForExternalId,
+  isGrantWindow,
   listEffectivePolicies,
   lockedOnRule,
   resolvePolicy,
@@ -270,12 +273,59 @@ describe('activeGrant', () => {
 });
 
 describe('createGrant', () => {
-  it('opens the server-configured window, not one the caller chose', async () => {
+  it('falls back to the server default when nobody names a window', async () => {
     const now = new Date('2026-09-20T10:00:00.000Z');
-    const grant = await createGrant(subjectId, SEND, now);
+    const grant = await createGrant(subjectId, SEND, undefined, now);
     expect(grant.expiresAt.getTime() - now.getTime()).toBe(config.grantWindowSec * 1000);
     expect(config.grantWindowSec).toBe(900); // fifteen minutes by default
     expect(await activeGrant(subjectId, SEND, now)).not.toBeNull();
+  });
+
+  it('opens exactly the window it is given', async () => {
+    const now = new Date('2026-09-20T10:00:00.000Z');
+    for (const windowSec of GRANT_WINDOWS_SEC) {
+      const grant = await createGrant(subjectId, `${SEND}/${windowSec}`, windowSec, now);
+      expect(grant.expiresAt.getTime() - now.getTime()).toBe(windowSec * 1000);
+    }
+  });
+});
+
+describe('clampGrantWindow', () => {
+  it('leaves a window the tenant allows alone', () => {
+    expect(clampGrantWindow(900, 3600)).toEqual({
+      windowSec: 900,
+      clamped: false,
+      maxWindowSec: 3600,
+    });
+    // Exactly at the ceiling is allowed, not shortened.
+    expect(clampGrantWindow(3600, 3600)).toMatchObject({ windowSec: 3600, clamped: false });
+  });
+
+  it('shortens one that is too long, and says so', () => {
+    // The bank case: every customer capped at five minutes.
+    expect(clampGrantWindow(28800, 300)).toEqual({
+      windowSec: 300,
+      clamped: true,
+      maxWindowSec: 300,
+    });
+  });
+
+  it('treats a ceiling of zero as "no windows at all"', () => {
+    expect(clampGrantWindow(300, 0)).toMatchObject({ windowSec: 0, clamped: true });
+  });
+
+  it('never returns more than was asked for, or less than nothing', () => {
+    expect(clampGrantWindow(0, 3600)).toMatchObject({ windowSec: 0, clamped: false });
+    expect(clampGrantWindow(300, -5)).toMatchObject({ windowSec: 0, clamped: true });
+  });
+
+  it('offers only the closed set of windows', () => {
+    // The server refuses anything else outright, so this list is a contract
+    // with the phone rather than a suggestion.
+    expect(GRANT_WINDOWS_SEC).toEqual([300, 900, 3600, 28800]);
+    expect(isGrantWindow(900)).toBe(true);
+    expect(isGrantWindow(600)).toBe(false);
+    expect(isGrantWindow(0)).toBe(false);
   });
 });
 

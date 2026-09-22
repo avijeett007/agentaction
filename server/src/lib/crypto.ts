@@ -90,19 +90,40 @@ export function deviceRequestMessage(
   return [method.toUpperCase(), path, timestamp, sha256Hex(body || '')].join('\n');
 }
 
-/** What a device signs to approve or deny. Binds the decision to the arguments. */
+/**
+ * What a device signs to approve or deny. Binds the decision to the arguments
+ * *and* to the length of the grant it creates.
+ *
+ * `windowSec` is inside the signature deliberately. If the duration travelled
+ * beside the signature instead, anything able to rewrite the request in flight
+ * could turn a five-minute grant into an eight-hour one without touching a
+ * single signed byte — the same class of attack the argument hash exists to
+ * stop.
+ *
+ * `once` signs `windowSec = 0` rather than leaving the field out, so the
+ * message always has the same seven lines and there is exactly one way to
+ * build it. A builder that omitted the line would produce two shapes, and two
+ * shapes is how a verifier ends up guessing.
+ *
+ * The version is `v2` because of that extra line: a v1 decision (six lines, no
+ * window) cannot verify here, so an older phone fails closed instead of
+ * quietly receiving whatever window the server would have picked.
+ */
 export function decisionMessage(input: {
   requestId: string;
   decision: string;
   scope: string;
+  /** Seconds the grant will last; 0 when the scope is `once`. */
+  windowSec: number;
   argsHash: string;
   signedAt: string;
 }): string {
   return [
-    'agentaction.decision.v1',
+    'agentaction.decision.v2',
     input.requestId,
     input.decision,
     input.scope,
+    String(input.windowSec),
     input.argsHash,
     input.signedAt,
   ].join('\n');

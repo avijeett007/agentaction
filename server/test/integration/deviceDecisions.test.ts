@@ -14,8 +14,13 @@ const ARGS = { to: 'someone@example.test', subject: 'Invoice' };
 const ARGS_HASH = hashArgs(ARGS);
 
 /** A tenant with one subject and one paired phone — the normal starting point. */
-async function pairedPhone(opts: { webhookUrl?: string } = {}) {
-  const { tenant } = await createTenant(opts.webhookUrl ? { webhookUrl: opts.webhookUrl } : {});
+async function pairedPhone(opts: { webhookUrl?: string; maxGrantWindowSec?: number } = {}) {
+  const { tenant } = await createTenant({
+    ...(opts.webhookUrl ? { webhookUrl: opts.webhookUrl } : {}),
+    ...(opts.maxGrantWindowSec === undefined
+      ? {}
+      : { maxGrantWindowSec: opts.maxGrantWindowSec }),
+  });
   const subject = await createSubject(tenant.id, 'cust_1');
   const phone = await createDevice(subject.id);
   return { tenant, subject, ...phone };
@@ -49,6 +54,10 @@ interface DecisionOptions {
   keys: TestKeyPair;
   decision?: 'approved' | 'denied';
   scope?: 'once' | 'window';
+  /** The window sent on the wire. Defaults to 0 for once, 900 for a window. */
+  windowSec?: number;
+  /** The window actually signed, when it differs from the one sent. */
+  signedWindowSec?: number;
   /** What the phone signs over. Defaults to the stored hash. */
   signedArgsHash?: string;
   signedAt?: number;
@@ -57,17 +66,19 @@ interface DecisionOptions {
 function decisionBody(opts: DecisionOptions) {
   const decision = opts.decision ?? 'approved';
   const scope = opts.scope ?? 'once';
+  const windowSec = opts.windowSec ?? (scope === 'window' ? 900 : 0);
   const signedAt = String(opts.signedAt ?? Math.floor(Date.now() / 1000));
   const signature = opts.keys.sign(
     decisionMessage({
       requestId: opts.requestId,
       decision,
       scope,
+      windowSec: opts.signedWindowSec ?? windowSec,
       argsHash: opts.signedArgsHash ?? ARGS_HASH,
       signedAt,
     }),
   );
-  return { decision, scope, signedAt, signature };
+  return { decision, scope, windowSec, signedAt, signature };
 }
 
 /** Posts a decision the way the app does: device-signed envelope, signed body. */
@@ -152,6 +163,24 @@ describe('GET /v1/device/requests/:id', () => {
       { label: 'Body', value: 'Please pay this.', sensitive: true },
     ]);
     expect(res.body.request.argsHash).toBe(ARGS_HASH);
+  });
+
+  it('carries the agency ceiling, so the phone cannot offer a window it would refuse', async () => {
+    const standard = await pairedPhone();
+    const standardRequest = await seedRequest(standard.subject.id);
+    const standardPath = `/v1/device/requests/${standardRequest.id}`;
+    const standardRes = await request(app)
+      .get(standardPath)
+      .set(deviceHeaders(standard.device.id, standard.deviceKeys, 'GET', standardPath));
+    expect(standardRes.body.request.maxWindowSec).toBe(3600);
+
+    const bank = await pairedPhone({ maxGrantWindowSec: 300 });
+    const bankRequest = await seedRequest(bank.subject.id);
+    const bankPath = `/v1/device/requests/${bankRequest.id}`;
+    const bankRes = await request(app)
+      .get(bankPath)
+      .set(deviceHeaders(bank.device.id, bank.deviceKeys, 'GET', bankPath));
+    expect(bankRes.body.request.maxWindowSec).toBe(300);
   });
 
   it('answers 404 for a request belonging to another subject', async () => {
@@ -338,37 +367,270 @@ describe('POST /v1/device/requests/:id/decision', () => {
     expect(stored?.status).toBe(winner.body.request.status);
   });
 
-  it('grants a window when asked, and nothing when the scope is once', async () => {
-    const windowed = await pairedPhone();
-    const windowRequest = await seedRequest(windowed.subject.id);
-    const granted = await postDecision(
-      windowed.device,
-      windowed.deviceKeys,
-      windowRequest.id,
-      decisionBody({
-        requestId: windowRequest.id,
-        keys: windowed.approvalKeys,
-        scope: 'window',
-      }),
-    );
-    expect(granted.status).toBe(200);
-
-    const grants = await prisma.grant.findMany({ where: { subjectId: windowed.subject.id } });
-    expect(grants).toHaveLength(1);
-    expect(grants[0].resourceKey).toBe('gmail/GMAIL_SEND_EMAIL');
-    const windowSec = (grants[0].expiresAt.getTime() - Date.now()) / 1000;
-    expect(windowSec).toBeGreaterThan(config.grantWindowSec - 30);
-    expect(windowSec).toBeLessThanOrEqual(config.grantWindowSec);
-
+  it('creates no grant at all when the scope is once', async () => {
     const once = await pairedPhone();
     const onceRequest = await seedRequest(once.subject.id);
-    await postDecision(
+    const res = await postDecision(
       once.device,
       once.deviceKeys,
       onceRequest.id,
       decisionBody({ requestId: onceRequest.id, keys: once.approvalKeys, scope: 'once' }),
     );
+
+    expect(res.status).toBe(200);
+    expect(res.body.grant).toBeNull();
     expect(await prisma.grant.count({ where: { subjectId: once.subject.id } })).toBe(0);
+    const stored = await prisma.approvalRequest.findUnique({ where: { id: onceRequest.id } });
+    expect(stored?.decisionScope).toBe('once');
+    expect(stored?.decisionWindowSec).toBeNull();
+  });
+
+  it('treats an absent window as zero, and verifies the signature that way', async () => {
+    const { subject, device, deviceKeys, approvalKeys } = await pairedPhone();
+    const approval = await seedRequest(subject.id);
+    const signed = decisionBody({ requestId: approval.id, keys: approvalKeys, scope: 'once' });
+
+    // A body with no `windowSec` at all, signed over an explicit 0. The two
+    // have to mean the same thing, or the shortest possible approval — the
+    // common one — would fail on the wire.
+    const res = await postDecision(device, deviceKeys, approval.id, {
+      decision: signed.decision,
+      scope: signed.scope,
+      signedAt: signed.signedAt,
+      signature: signed.signature,
+    });
+
+    expect(res.status).toBe(200);
+    expect(await prisma.grant.count()).toBe(0);
+  });
+
+  it('grants exactly the window the phone signed for, whichever one it is', async () => {
+    // Every window the app offers, end to end. 8h is left out because the
+    // default tenant ceiling is an hour — that case has its own test below.
+    for (const windowSec of [300, 900, 3600]) {
+      const phone = await pairedPhone();
+      const approval = await seedRequest(phone.subject.id);
+
+      const res = await postDecision(
+        phone.device,
+        phone.deviceKeys,
+        approval.id,
+        decisionBody({
+          requestId: approval.id,
+          keys: phone.approvalKeys,
+          scope: 'window',
+          windowSec,
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.grant).toMatchObject({
+        windowSec,
+        requestedWindowSec: windowSec,
+        clamped: false,
+      });
+
+      const grants = await prisma.grant.findMany({ where: { subjectId: phone.subject.id } });
+      expect(grants).toHaveLength(1);
+      expect(grants[0].resourceKey).toBe('gmail/GMAIL_SEND_EMAIL');
+      const actualSec = (grants[0].expiresAt.getTime() - Date.now()) / 1000;
+      expect(actualSec).toBeGreaterThan(windowSec - 30);
+      expect(actualSec).toBeLessThanOrEqual(windowSec);
+
+      // And the row an integrator reads says how long, not merely "a window".
+      const stored = await prisma.approvalRequest.findUnique({ where: { id: approval.id } });
+      expect(stored).toMatchObject({ decisionScope: 'window', decisionWindowSec: windowSec });
+      const decision = await prisma.decision.findFirst({ where: { requestId: approval.id } });
+      expect(decision).toMatchObject({ scope: 'window', windowSec });
+    }
+  });
+
+  it('allows eight hours only where the tenant has raised its ceiling', async () => {
+    const raised = await pairedPhone({ maxGrantWindowSec: 28800 });
+    const longRequest = await seedRequest(raised.subject.id);
+    const allowed = await postDecision(
+      raised.device,
+      raised.deviceKeys,
+      longRequest.id,
+      decisionBody({
+        requestId: longRequest.id,
+        keys: raised.approvalKeys,
+        scope: 'window',
+        windowSec: 28800,
+      }),
+    );
+    expect(allowed.status).toBe(200);
+    expect(allowed.body.grant).toMatchObject({ windowSec: 28800, clamped: false });
+
+    // The same request against a tenant that has not raised it is shortened,
+    // and the answer says so rather than quietly handing back less.
+    const standard = await pairedPhone();
+    const cappedRequest = await seedRequest(standard.subject.id);
+    const capped = await postDecision(
+      standard.device,
+      standard.deviceKeys,
+      cappedRequest.id,
+      decisionBody({
+        requestId: cappedRequest.id,
+        keys: standard.approvalKeys,
+        scope: 'window',
+        windowSec: 28800,
+      }),
+    );
+    expect(capped.status).toBe(200);
+    expect(capped.body.grant).toMatchObject({
+      windowSec: 3600,
+      requestedWindowSec: 28800,
+      maxWindowSec: 3600,
+      clamped: true,
+    });
+    const grants = await prisma.grant.findMany({ where: { subjectId: standard.subject.id } });
+    const actualSec = (grants[0].expiresAt.getTime() - Date.now()) / 1000;
+    expect(actualSec).toBeLessThanOrEqual(3600);
+  });
+
+  it('clamps every customer of a five-minute agency to five minutes', async () => {
+    // The bank case: the agency caps the window, the phone does not get a vote.
+    const bank = await pairedPhone({ maxGrantWindowSec: 300 });
+    const approval = await seedRequest(bank.subject.id);
+
+    const res = await postDecision(
+      bank.device,
+      bank.deviceKeys,
+      approval.id,
+      decisionBody({
+        requestId: approval.id,
+        keys: bank.approvalKeys,
+        scope: 'window',
+        windowSec: 3600,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.grant).toMatchObject({
+      windowSec: 300,
+      requestedWindowSec: 3600,
+      maxWindowSec: 300,
+      clamped: true,
+    });
+    const grants = await prisma.grant.findMany({ where: { subjectId: bank.subject.id } });
+    const actualSec = (grants[0].expiresAt.getTime() - Date.now()) / 1000;
+    expect(actualSec).toBeGreaterThan(270);
+    expect(actualSec).toBeLessThanOrEqual(300);
+    const stored = await prisma.approvalRequest.findUnique({ where: { id: approval.id } });
+    expect(stored?.decisionWindowSec).toBe(300);
+  });
+
+  it('grants nothing at all for a tenant whose ceiling is zero', async () => {
+    const strict = await pairedPhone({ maxGrantWindowSec: 0 });
+    const approval = await seedRequest(strict.subject.id);
+
+    const res = await postDecision(
+      strict.device,
+      strict.deviceKeys,
+      approval.id,
+      decisionBody({
+        requestId: approval.id,
+        keys: strict.approvalKeys,
+        scope: 'window',
+        windowSec: 300,
+      }),
+    );
+
+    // The approval stands — it just covers this one call.
+    expect(res.status).toBe(200);
+    expect(res.body.request.status).toBe('approved');
+    expect(res.body.grant).toMatchObject({ windowSec: 0, clamped: true });
+    expect(await prisma.grant.count({ where: { subjectId: strict.subject.id } })).toBe(0);
+    const stored = await prisma.approvalRequest.findUnique({ where: { id: approval.id } });
+    expect(stored?.decisionScope).toBe('once');
+  });
+
+  it('refuses a window that is not one of the offered durations', async () => {
+    const { subject, device, deviceKeys, approvalKeys } = await pairedPhone();
+    const approval = await seedRequest(subject.id);
+
+    // Ten minutes is perfectly reasonable and is not on the list. The set is
+    // closed so that every hop agrees on it; an odd value is a client that has
+    // drifted, and guessing what it meant is how five minutes becomes eight
+    // hours.
+    const res = await postDecision(
+      device,
+      deviceKeys,
+      approval.id,
+      decisionBody({ requestId: approval.id, keys: approvalKeys, scope: 'window', windowSec: 600 }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('invalid_request');
+    expect(await prisma.grant.count()).toBe(0);
+    expect(await prisma.decision.count()).toBe(0);
+    const stored = await prisma.approvalRequest.findUnique({ where: { id: approval.id } });
+    expect(stored?.status).toBe('pending');
+  });
+
+  it('refuses a once decision that smuggles a window alongside it', async () => {
+    const { subject, device, deviceKeys, approvalKeys } = await pairedPhone();
+    const approval = await seedRequest(subject.id);
+
+    const res = await postDecision(
+      device,
+      deviceKeys,
+      approval.id,
+      decisionBody({ requestId: approval.id, keys: approvalKeys, scope: 'once', windowSec: 900 }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(await prisma.grant.count()).toBe(0);
+  });
+
+  it('refuses a decision signed over a different window', async () => {
+    const { subject, device, deviceKeys, approvalKeys } = await pairedPhone({
+      maxGrantWindowSec: 28800,
+    });
+    const approval = await seedRequest(subject.id);
+
+    // The attack this whole change exists to stop: a genuine signature for a
+    // five-minute grant, with eight hours put on the wire beside it. If the
+    // duration were not inside the signed message, this would succeed.
+    const res = await postDecision(
+      device,
+      deviceKeys,
+      approval.id,
+      decisionBody({
+        requestId: approval.id,
+        keys: approvalKeys,
+        scope: 'window',
+        windowSec: 28800,
+        signedWindowSec: 300,
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('bad_signature');
+    expect(await prisma.grant.count()).toBe(0);
+    const stored = await prisma.approvalRequest.findUnique({ where: { id: approval.id } });
+    expect(stored?.status).toBe('pending');
+  });
+
+  it('refuses a decision signed as once and sent as a window', async () => {
+    const { subject, device, deviceKeys, approvalKeys } = await pairedPhone();
+    const approval = await seedRequest(subject.id);
+
+    const res = await postDecision(
+      device,
+      deviceKeys,
+      approval.id,
+      {
+        ...decisionBody({ requestId: approval.id, keys: approvalKeys, scope: 'once' }),
+        scope: 'window',
+        windowSec: 900,
+      },
+    );
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('bad_signature');
+    expect(await prisma.grant.count()).toBe(0);
   });
 
   it('does not create a grant when the answer is a denial', async () => {

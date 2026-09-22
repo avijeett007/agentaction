@@ -22,7 +22,7 @@ export interface Account {
   serverUrl: string;
   /** Who this phone approves as, e.g. "ops@acme.com". */
   subjectLabel: string;
-  /** What this phone is called on the account, e.g. "Avijit's iPhone". */
+  /** What this phone is called on the account, e.g. "Sam's iPhone". */
   deviceLabel: string;
   brand: Brand;
   createdAt: string;
