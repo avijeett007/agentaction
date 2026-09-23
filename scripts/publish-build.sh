@@ -42,10 +42,17 @@ for FILE in "$@"; do
 
   case "$FILE" in
     *.apk)
-      # An APK is a zip whose first entry is normally AndroidManifest.xml; the
-      # point is only to catch "you uploaded the .aab" and similar slips.
-      unzip -l "$FILE" 2>/dev/null | grep -q "AndroidManifest.xml" \
-        || die "$FILE does not look like an APK (no AndroidManifest.xml inside)"
+      # An APK is a zip containing AndroidManifest.xml; the point is only to
+      # catch "you uploaded the .aab" and similar slips.
+      #
+      # Read the listing into a variable rather than piping it to `grep -q`:
+      # under `set -o pipefail`, grep exits at the first match, unzip takes a
+      # SIGPIPE, and the pipeline reports failure on a PERFECTLY GOOD APK.
+      LISTING="$(unzip -l "$FILE" 2>/dev/null || true)"
+      case "$LISTING" in
+        *AndroidManifest.xml*) ;;
+        *) die "$FILE does not look like an APK (no AndroidManifest.xml inside)" ;;
+      esac
       ANDROID_FILE="$(basename "$FILE")"
       ;;
     *.aab)
