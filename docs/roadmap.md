@@ -5,6 +5,13 @@ partners and anyone evaluating it for an organisation. Each item says what it
 means, whether it is feasible, how we would build it and roughly what it costs.
 Effort is in engineer-weeks. Nothing below is built yet unless it says so.
 
+**The vision.** AgentAction puts a person in charge of the actions that
+automated systems take — AI agents today, and any automation that calls an API
+or an MCP service, as agents keep getting more capable. The goal is that any
+API or MCP service can require an approval from the person accountable for it,
+on their phone, without the caller or the service being rewritten. AI agents
+are the first callers; they will not be the last.
+
 Where this starts from (September 2026): an approval server, a TypeScript SDK
 and a phone app. Integrators authenticate with one API key per tenant; phones
 pair by QR code; approvals are signed on the phone over a hash of the exact
@@ -236,6 +243,137 @@ needs real data first.
 
 ---
 
+## 5. The agent runs its own approved call
+
+**Verdict: decided (September 2026), and it comes early** — items 1 and 3,
+and a drop-in gateway, all get simpler once it is in.
+
+**What changes:** today an integrator can hold an approved call and run it
+in the background once the phone says yes. Instead, the call runs only when
+the agent or automation that asked comes back for it, and the result goes
+straight back to it. It is the shape of CIBA's poll mode, a card payment's
+"requires action, then confirm", and OAuth step-up.
+
+**How it works:**
+
+1. The first call gets `APPROVAL_REQUIRED` with the 4-digit code, the request
+   id and the expiry. Nothing runs.
+2. The client comes back when it chooses — the person says "done", it polls
+   with the request id, or it never does — and **calls the same tool again
+   with the same arguments**. The integrator asks the server to *claim* an
+   approved, unused approval for exactly that person, tool and argument hash;
+   the server uses it up once, atomically, and the call runs as an ordinary
+   call. Nothing needs to be stored in between: not the call, not a token.
+3. Still pending: the same code comes back, and no second notification is
+   sent. Just denied: the call is refused, so an agent in a loop cannot keep
+   ringing the phone. Different arguments: that is a different action, and a
+   new approval is raised.
+4. An approval nobody comes back for stops being usable after a short window,
+   and nothing runs. Later, the phone can say so ("Approved, waiting for your
+   agent", then "Not run").
+
+**Why:**
+
+- **Nothing happens behind the caller's back.** An agent that has moved on,
+  a finished conversation or a crashed automation cannot have an action run
+  without seeing its result.
+- **No credentials at rest.** The run uses the credentials on the return
+  call, so nothing has to store the agent's token while a person decides.
+- **Safe retries.** A single-use approval means a retry after a timeout gets
+  "already used", never a second send.
+- **Agents can learn from the outcome.** Every approval, denial and expiry
+  comes back to the agent that asked — a labelled example of what this person
+  accepts. A refund agent learns which refunds get approved and proposes
+  better ones. It is the agent-side half of item 4: AgentAction learns when to
+  stop asking, the agent learns what to propose. An optional one-tap reason on
+  deny ("wrong amount", "not now", "never do this") makes the signal richer.
+- **A pluggable gateway becomes almost stateless**, which is what makes
+  "put AgentAction in front of your MCP servers, change nothing else" realistic.
+
+**Next:** agent identity (item 3) turns "the same agent" from the same token
+into the same verified workload identity: the approval is bound to the agent's
+SPIFFE ID, the phone shows the verified agent, and the return call must present
+the same identity.
+
+**Server additions:** a claim step that is atomic and single-use, so two
+gateway instances cannot both run one approval; the window after which an
+unused approval stops working; later, the matching phone states and the
+optional deny reason. Because nothing has to be replayed, callers with
+short-lived or per-tool credentials work too.
+
+**Effort:** about 1–2 weeks across the server, SDK, app and a reference
+gateway, plus the change in each existing integration.
+
+---
+
+## 6. Pluggable for any business, in front of any API or MCP service
+
+**Verdict: the direction, not scheduled yet.** The first platform integration
+goes live and proves the product first; businesses are not expected to adopt
+AgentAction the day it exists. This item records what "pluggable" means so the
+work before it does not close the door.
+
+**The problem today:** AgentAction is a decision service plus a low-level SDK
+(evaluate a rule, raise a request, wait, verify a webhook). The first
+integration had to write the rest itself — the gate, holding calls, running
+each approved call exactly once, a reconciliation sweep, the wait tool —
+about 2,500 lines. A business should not have to.
+
+**The principle:** rules and decisions live on the AgentAction server, so every
+route below obeys the same rules, and an organisation can govern all of them
+from one console. Whatever route is used also registers its tool catalogue,
+so the console always knows which tools exist. Item 5 is the foundation: with
+the client running its own approved call, nothing stores credentials and the
+hold-wait-run logic moves into AgentAction.
+
+**The routes, in the order they should be built:**
+
+1. **An MCP gateway — no code.** A Docker image run in front of the business's
+   MCP servers. One config file: the upstream servers, the AgentAction URL and
+   key, and how to tell which end user is calling (a header, a claim in a signed
+   login token, or a fixed mapping per token). Agents connect to the gateway
+   instead; it lists the same tools plus `agentaction_await_approval`, replies
+   `APPROVAL_REQUIRED` with the code for a gated call, and forwards the original
+   call with the agent's current login once it is approved. Held arguments are
+   encrypted and expire on their own, in memory or Redis; arguments are never
+   logged. The upstream servers must only be reachable through it.
+2. **Hosted pages — no UI to build.** A pairing link the business sends its
+   users (the QR code, app-store links and a live "paired" status), and a rules
+   page per person with a switch per tool and the business's locked rules
+   shown read-only. Served by the approval server, so they are self-hostable.
+3. **An HTTP API route — for any automation, not only agents.** The same
+   check in front of ordinary REST APIs: middleware for common frameworks
+   (Express, Fastify, NestJS) and plugins for common API gateways (Kong,
+   Envoy, NGINX), where the "tool" is the method and route. A gated request
+   gets a machine-readable "approval required" answer with the code and
+   request id; the automation repeats the same request once it is approved.
+4. **SDK drop-ins — a few lines.** One core, `ApprovalGate` (`check` →
+   run or wait; `resume` → run once, wait, denied, expired or used), with a
+   generic on-screen summary per tool that can be overridden. On top of it: a
+   one-line middleware for MCP servers built on the official SDK, tool wrappers
+   for agent frameworks (OpenAI Agents SDK, Vercel AI SDK, LangChain, Claude
+   Agent SDK), and the same core for a business that adds AgentAction to its
+   own gateway.
+5. **An organisation admin console.** Once an organisation has the gateway or
+   the SDK in place, its admins enforce rules centrally: defaults and locks per
+   tool, people and their phones, the audit trail, and later enterprise sign-in
+   (item 2) and roles. Rules set there apply to every route above.
+
+**What each route needs from the server:** the single-use "use this approval"
+step from item 5, tool-catalogue registration, pairing and rules links, and
+console sign-in (email link first, enterprise sign-in later).
+
+**Documentation that ships with it:** "Put AgentAction in front of your MCP
+server in 10 minutes"; a guide to what an agent receives and how it should tell
+the person the code and wait; configuration and API reference; the security
+model (who sees what); and running it in production.
+
+**Effort, once scheduled:** gateway and quickstart 2–3 weeks; hosted pages
+2–3 weeks; HTTP API middleware and gateway plugins 2–3 weeks; SDK drop-ins 1–2
+weeks; admin console 4–6 weeks.
+
+---
+
 ## Sequence
 
 With about two engineers, roughly six to eight months in total:
@@ -243,11 +381,13 @@ With about two engineers, roughly six to eight months in total:
 | Phase | What | Time |
 |---|---|---|
 | 0 | Tighten what exists (above) | 1–2 weeks |
+| 0b | The agent runs its own approved call (item 5) | 1–2 weeks |
 | 1 | Enterprise sign-in in the app, identity linking, SCIM (item 2) | 6–8 weeks |
 | 2 | CIBA provider, then the Keycloak adapter (item 1) | 8–10 weeks |
 | 3 | Rule-based adaptive decisioning and fatigue metrics (item 4, parts 1–3) — can run alongside phase 2 | 6–8 weeks |
 | 4 | Agent identity: workload tokens, registry, decision v3, receipts, audit export (item 3) | 8–10 weeks |
 | 5 | As customers ask: risk scoring, AI classifier hook, Shared Signals, Ping/Curity adapters, hardware-backed keys | — |
+| 6 | Pluggable for any business (item 6): MCP gateway, hosted pages, HTTP API route, SDK drop-ins, then the admin console — once the first integration is live | 11–17 weeks |
 
 ## Decisions the owner needs to make
 
@@ -268,6 +408,9 @@ With about two engineers, roughly six to eight months in total:
 5. **Assurance level:** move approval signing into the Secure Enclave /
    StrongBox? That means switching from Ed25519 to P-256 and a new decision
    message version, and it is a prerequisite for bank-grade (FAPI) claims.
+6. **Pluggable editions:** which of the gateway, hosted pages and admin console
+   are open source and self-hostable, and which are hosted or Enterprise-only?
+   And where does the admin console live for customers who do not self-host?
 
 ## Sources
 

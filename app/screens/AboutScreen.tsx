@@ -1,5 +1,11 @@
 /**
- * What AgentAction is, and who stands behind it.
+ * What AgentAction is, for the person holding the phone.
+ *
+ * Written to THEM, not about them. Whoever set the agent up already knows what
+ * a tool call is; the person being asked to approve one may have installed this
+ * because a company told them to, and is owed a plain answer to "what is this
+ * and why is it asking me?". So: no "tool call", no "gated", no "your users",
+ * and nothing that assumes they run anything.
  *
  * The credit at the bottom is deliberately parked here rather than anywhere
  * near a decision. Nothing may interrupt an approval to sell something, so the
@@ -37,38 +43,71 @@ export function AboutScreen({ onBack }: { onBack: () => void }) {
           <Text style={type.title}>{SLOGAN}</Text>
           <Text style={type.body}>{DESCRIPTOR}</Text>
           <Text style={styles.paragraph}>
-            When an agent calls a tool that has been gated, the call does not run. It waits here.
-            You see what is being asked, approve or deny it, and only then does it go ahead.
+            An AI assistant is doing some work for you — answering messages, booking things,
+            moving money. For the steps that matter, it is not allowed to just go ahead. It has to
+            ask you first.
+          </Text>
+          <Text style={styles.paragraph}>
+            That is what this app is. When the assistant wants to do one of those things, the
+            request appears here and your phone buzzes. You read what it wants to do, then approve
+            or refuse it. Nothing happens until you do, and if you refuse, nothing happens at all.
           </Text>
         </Card>
 
         <Card>
-          <Heading>What makes a request trustworthy</Heading>
+          <Heading>Where the requests come from</Heading>
+          <Text style={styles.paragraph}>
+            From whoever set up the assistant — your company, or a service you use. You pair this
+            phone with them once, by scanning their code, and you can unpair at any time from
+            Accounts. You can be paired with more than one.
+          </Text>
+          <Text style={styles.paragraph}>
+            They choose which actions need your say-so. You are not signing up to anything here:
+            there is no account to create, and the app asks you for nothing but a decision.
+          </Text>
+        </Card>
+
+        <Card>
+          <Heading>How to know a request is real</Heading>
           <Point icon="keypad-outline">
-            The four-digit code on the request is the same one the agent was given. If they do not
-            match, you are not looking at the call you think you are.
+            Every request shows a four-digit code, and the assistant was given the same one. If the
+            code you are told does not match the code on screen, this is not the request you think
+            it is. Refuse it.
           </Point>
           <Point icon="finger-print-outline">
-            Your decision is signed by a key this phone releases only after Face ID, a fingerprint
-            or your passcode. Nobody can approve on your behalf.
+            Approving needs Face ID, your fingerprint or your passcode — every time. Nobody can
+            approve in your name, not even someone holding your unlocked phone.
           </Point>
           <Point icon="document-text-outline">
-            Arguments are shown as plain text and nothing else. They were written by a model, and
-            a model must never be able to style or fake part of this screen.
+            What the assistant wants to do is shown as plain text, exactly as it wrote it. It
+            cannot make anything bold, hide anything, or dress a request up to look official.
+          </Point>
+          <Point icon="time-outline">
+            A request expires. If you do nothing, nothing happens — the assistant is refused by
+            default, not allowed by default.
           </Point>
         </Card>
 
         <Card>
-          <Heading>Want this in your own stack?</Heading>
+          <Heading>What this app can see</Heading>
+          <Point icon="eye-off-outline">
+            Only what you are asked to approve. It cannot read your messages, your files or
+            anything else on this phone.
+          </Point>
+          <Point icon="cloud-offline-outline">
+            There is no account, no sign-up and no tracking. Your approval key never leaves this
+            phone.
+          </Point>
+          <Point icon="camera-outline">
+            The camera is used once, to read a pairing code. Nothing is photographed or kept.
+          </Point>
+        </Card>
+
+        <Card>
+          <Heading>Run it yourself</Heading>
           <Text style={styles.paragraph}>
-            AgentAction is an approval layer for agent tool calls, and it is not tied to one
-            platform. Run the server yourself against your own gateway, or have it deployed and
-            operated for you alongside what you already have.
-          </Text>
-          <Text style={styles.paragraph}>
-            That work is delivered by Sonti, an AI engineering agency we work with: agent
-            gateways, approval and audit paths, and the unglamorous parts that decide whether an
-            agent is safe to hand a key to.
+            If you are the one setting an assistant up rather than approving its work, AgentAction
+            is open source and can run on your own servers.
           </Text>
           {problem ? <Notice tone="warn">{problem}</Notice> : null}
           <Button title="Open sonti.io" icon="open-outline" onPress={openSite} />

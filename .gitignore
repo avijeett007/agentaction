@@ -2,6 +2,11 @@ node_modules/
 dist/
 coverage/
 .env
+# `.env` alone does NOT match `.env.prod`/`.env.local` — and this repo is
+# published publicly, so a stray `git add -A` must never be able to stage one.
+.env.*
+!.env.example
+!**/.env.example
 *.db
 *.db-journal
 .expo/

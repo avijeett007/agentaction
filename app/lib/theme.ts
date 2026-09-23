@@ -100,10 +100,18 @@ export const NEUTRAL_BRAND: Brand = {
   color: palette.brand,
 };
 
-/** What the app says about itself. One place, so the wording cannot drift. */
-export const SLOGAN = 'Agents act. Your users decide.';
-export const SLOGAN_SHORT = 'Your users decide.';
-export const DESCRIPTOR = 'Human approval for agent tool calls.';
+/**
+ * What the app says about itself. One place, so the wording cannot drift.
+ *
+ * Written for the person holding the phone, not for the business that installed
+ * the agent. They are not "the user" of a platform here — they are the one being
+ * asked, and the only one who can say yes. So: "you", never "your users", and no
+ * word that only means something to whoever wired the agent up ("tool call",
+ * "gated", "stack").
+ */
+export const SLOGAN = 'Agents act. You decide.';
+export const SLOGAN_SHORT = 'You decide.';
+export const DESCRIPTOR = 'Nothing happens until you approve it.';
 
 export interface Theme {
   brand: Brand;

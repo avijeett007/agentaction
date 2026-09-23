@@ -33,6 +33,24 @@ Two people tend to want this for different reasons:
   irreversible action happened without a named human approving it, with a
   signed record and an audit trail to prove it.
 
+## Download the app
+
+The phone app is not in the stores yet. Until it is, install it from the
+[**latest release**](https://github.com/avijeett007/agentaction/releases/latest).
+
+**Android** — download the `.apk` from that page and open it. Android will ask
+whether to allow installs from your browser; you have to say yes once. Check the
+file against the SHA-256 printed in the release notes if you want to be sure you
+got the file we built.
+
+**iPhone** — Apple does not allow installing an app from a download, so there is
+no `.ipa` to hand out. Use the TestFlight link on the release page instead. (If
+you are running your own server for a small group, you can build an ad-hoc `.ipa`
+for specific registered phones — see [docs/releasing.md](docs/releasing.md).)
+
+You will need a pairing code from whoever runs the agent you are approving for.
+Building and publishing these yourself: [docs/releasing.md](docs/releasing.md).
+
 ## How it works
 
 1. Your gateway asks AgentAction whether this tool call needs a human.
@@ -86,7 +104,7 @@ everything in this repository is in service of it.
 | `sdk/` | `@agentaction/sdk` — the typed client an integrator uses, plus webhook verification and the canonical argument hash. |
 | `app/` | The phone app. Expo / React Native, iOS and Android. Pairing, the pending list, the approval screen, settings. See [app/README.md](app/README.md). |
 | `brand/` | The mark, the wordmark and the palette. See [brand/README.md](brand/README.md). |
-| `docs/` | [Running it in production](docs/production.md) (Docker, Postgres, Supabase, Coolify, several instances), [multi-tenancy](docs/multi-tenancy.md) (Enterprise), and the [device test plan](docs/device-smoke.md). |
+| `docs/` | [Releasing the app](docs/releasing.md) (build, publish a download, then the stores), [running it in production](docs/production.md) (Docker, Postgres, Supabase, Coolify, several instances), [multi-tenancy](docs/multi-tenancy.md) (Enterprise), and the [device test plan](docs/device-smoke.md). |
 | `site/` | The landing page at agentaction.online. |
 
 The approval server never executes anything. It decides *who approved what*.

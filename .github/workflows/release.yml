@@ -1,0 +1,171 @@
+# Build the Android app and publish it as a downloadable release.
+#
+# Triggered by a push to main, which is what merging a pull request produces —
+# main is protected, so a push to it can only come from a merge.
+#
+# WHY IT ONLY BUILDS ON A VERSION CHANGE: EAS build minutes are metered, and
+# most publishes are documentation. The job compares app/app.json's version with
+# the latest release tag and skips the build when they match. Bump the version
+# to cut a release; publish anything else and only the checks run.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  # Deliberately NOT pull_request: this repository is public, and a fork's PR
+  # must never be able to run a job that can read EXPO_TOKEN.
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Build and release even if the version has not changed
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Types and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck --workspace server
+      - run: npm test --workspace server
+      - name: App checks
+        working-directory: app
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npx jest
+
+  decide:
+    name: Is this a new version?
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          version=$(node -p "require('./app/app.json').expo.version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "v$version" >/dev/null 2>&1; then
+            if [ "$FORCE" = "true" ]; then
+              echo "v$version already released, but force was requested."
+              echo "release=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "v$version is already released — nothing to build."
+              echo "release=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "v$version has no release yet — building."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    name: Build APK and publish
+    needs: decide
+    if: needs.decide.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+        working-directory: app
+
+      # --wait so the artefact exists by the time we publish it; the build reuses
+      # the keystore EAS already holds, so the signing identity never changes.
+      - name: Build the APK on EAS
+        working-directory: app
+        run: eas build --platform android --profile release-apk --non-interactive --wait
+
+      - name: Download the artefact
+        working-directory: app
+        run: |
+          url=$(eas build:list --platform android --limit 1 --status finished --json --non-interactive \
+                | node -p "JSON.parse(require('fs').readFileSync(0,'utf8'))[0].artifacts.applicationArchiveUrl")
+          curl -fsSL "$url" -o "../agentaction-${{ needs.decide.outputs.version }}.apk"
+
+      # The checksum is the only thing vouching for a file handed out outside a
+      # store, so it goes in the notes where the person downloading can see it.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ needs.decide.outputs.version }}
+        run: |
+          sum=$(sha256sum "agentaction-$V.apk" | cut -d' ' -f1)
+          cat > notes.md <<EOF
+          ## AgentAction $V
+
+          Install on Android
+          1. Download \`agentaction-$V.apk\` below.
+          2. Open it. Android asks whether to allow installs from your browser — say yes.
+          3. Already have the app? This installs over it and keeps your pairings.
+
+          On iPhone: Apple does not install apps from a download. Join the TestFlight beta instead.
+
+          SHA-256
+          \`\`\`
+          $sum  agentaction-$V.apk
+          \`\`\`
+          EOF
+          gh release create "v$V" "agentaction-$V.apk" --title "AgentAction $V" --notes-file notes.md
+
+  release-ios:
+    name: Build iOS and attach it
+    needs: [decide, release]
+    # OFF until Apple credentials exist in EAS. An iOS build needs an Apple
+    # Developer account and a one-time interactive `eas credentials -p ios`;
+    # without it every run would fail. Set the repository variable
+    # IOS_RELEASE_ENABLED to 'true' once that is done.
+    if: needs.decide.outputs.release == 'true' && vars.IOS_RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+        working-directory: app
+
+      - name: Build the IPA on EAS
+        working-directory: app
+        run: eas build --platform ios --profile release-ios --non-interactive --wait
+
+      - name: Download and attach it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ needs.decide.outputs.version }}
+        working-directory: app
+        run: |
+          url=$(eas build:list --platform ios --limit 1 --status finished --json --non-interactive \
+                | node -p "JSON.parse(require('fs').readFileSync(0,'utf8'))[0].artifacts.applicationArchiveUrl")
+          curl -fsSL "$url" -o "../agentaction-$V.ipa"
+          cd ..
+          # Attached for the record and for registered devices. Apple will NOT
+          # install this from a download on an arbitrary phone — the UDID has to
+          # be in the provisioning profile — so the notes must not promise it.
+          gh release upload "v$V" "agentaction-$V.ipa" --clobber
