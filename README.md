@@ -409,6 +409,18 @@ the same review applied to the agents you already run — that work is delivered
 by [Sonti](https://sonti.io), an AI engineering agency we work with. Book a
 conversation there; the product itself stays with Kno2gether Labs.
 
+## Contributing
+
+This repository is a **published snapshot** of a private one — each release
+replaces the tree with a single commit — so a pull request merged here would be
+reverted by the next publish. Pull requests are therefore not accepted, however
+good the change.
+
+Bug reports, on the other hand, are read and acted on, and the code is
+Apache-2.0 so you can fork it and change whatever you like without asking.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the detail;
+[SECURITY.md](SECURITY.md) covers anything that should not be public.
+
 ## Licence
 
 [Apache-2.0](LICENSE). Run it, change it, use it commercially, including inside

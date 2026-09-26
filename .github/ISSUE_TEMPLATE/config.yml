@@ -1,0 +1,25 @@
+# Blank issues stay enabled so feature requests and questions have somewhere to
+# land next to the bug-report template. Pull requests are a dead end here — the
+# repository is a published snapshot — so every link below points at a route
+# that actually goes somewhere.
+blank_issues_enabled: true
+contact_links:
+  - name: 💡 Feature request or idea
+    url: https://github.com/avijeett007/agentaction/issues/new
+    about: Describe the problem you want solved rather than the implementation. Features land over time; no timelines promised.
+
+  - name: 🔒 Report a vulnerability (privately)
+    url: https://github.com/avijeett007/agentaction/security/advisories/new
+    about: Never in a public issue. Anything that bypasses or forges an approval, or crosses a tenant boundary, comes here.
+
+  - name: 📥 Download the app
+    url: https://github.com/avijeett007/agentaction/releases/latest
+    about: Android APK. Check the newest release before filing a bug — it may already be fixed.
+
+  - name: 🍴 Just want to change it?
+    url: https://github.com/avijeett007/agentaction/blob/main/CONTRIBUTING.md
+    about: AgentAction is Apache-2.0. Fork it and ship it in your own product — no permission needed, and no PR required.
+
+  - name: ✉️ Something else
+    url: mailto:connect@agentaction.online
+    about: Anything that does not fit an issue.
