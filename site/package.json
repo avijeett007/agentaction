@@ -2,12 +2,13 @@
   "name": "agentaction-site",
   "version": "0.1.0",
   "private": true,
-  "description": "The public marketing site for AgentAction — agentaction.online.",
+  "description": "The public marketing site for AgentAction \u2014 agentaction.online.",
   "type": "module",
   "scripts": {
     "build": "node build.mjs --check",
     "dev": "node serve.mjs",
     "preview": "wrangler dev",
+    "test": "node --test \"test/**/*.test.mjs\"",
     "deploy": "wrangler deploy"
   },
   "license": "Apache-2.0",

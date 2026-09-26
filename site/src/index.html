@@ -134,11 +134,12 @@
       <a href="#how-it-works">How it works</a>
       <a href="#who-its-for">Who it's for</a>
       <a href="#security">Security</a>
-      <a href="#questions">Questions</a>
+      <a href="#connect">Connect your agent</a>
       <a href="#try">Get started</a>
       <a href="https://github.com/avijeett007/agentaction">GitHub</a>
     </nav>
-    <a class="btn btn--primary btn--small" href="https://portal.agentaction.online">Try AgentAction</a>
+    <a class="topnav__login" href="https://portal.agentaction.online/login">Log in</a>
+    <a class="btn btn--primary btn--small" data-signup href="https://portal.agentaction.online/register">Try AgentAction</a>
   </div>
 </header>
 
@@ -154,10 +155,10 @@
       </h1>
       <p class="hero__lead">You pick which actions need your approval. When your agent tries one, a request comes to your phone. The action runs only if you approve it. Deny it or let it time out, and nothing happens.</p>
       <div class="hero__actions">
-        <a class="btn btn--primary" href="https://portal.agentaction.online">Try AgentAction</a>
+        <a class="btn btn--primary" data-signup href="https://portal.agentaction.online/register">Try AgentAction</a>
         <a class="btn btn--quiet" href="#walkthrough">Watch the 30-second demo</a>
       </div>
-      <p class="hero__small">Sign up at <a href="https://portal.agentaction.online">portal.agentaction.online</a> and connect your first app straight away. <a href="#try">How to get started</a></p>
+      <p class="hero__small">Sign up at <a href="https://portal.agentaction.online/register">portal.agentaction.online</a> and connect your first app straight away. <a href="#try">How to get started</a></p>
     </div>
 
     <div class="demo" id="demo" data-state="open">
@@ -509,20 +510,46 @@
 <section class="band band--start" id="try" aria-labelledby="try-title">
   <div class="shell try">
     <div class="try__intro">
-      <h2 id="try-title" class="start__title">Set up your first approval.</h2>
-      <p>Choose the one action that would hurt most if it went wrong. For a lot of people that's a new email to customers; for a shop it might be refunds.</p>
+      <h2 id="try-title" class="start__title">Try it with your own agent.</h2>
+      <p>Free to start. Pick the one action that would hurt most if it went wrong &mdash; for a lot of people that&rsquo;s a new email to customers; for a shop it might be refunds &mdash; and put yourself in front of it.</p>
       <div class="hero__actions">
-        <a class="btn btn--primary" href="https://portal.agentaction.online">Create your account</a>
+        <a class="btn btn--primary" data-signup href="https://portal.agentaction.online/register">Sign up free</a>
         <a class="btn btn--quiet" href="mailto:connect@agentaction.online">Email us</a>
       </div>
     </div>
     <ol class="try__steps">
-      <li><b>Create your account</b> at <a href="https://portal.agentaction.online">portal.agentaction.online</a>.</li>
-      <li><b>Connect the apps your agent uses</b>, like Gmail or Google Calendar, and add the AgentAction connection to your agent.</li>
-      <li><b>Install the phone app and pair it</b> by scanning the QR code in the portal. It isn't in the app stores yet, so we'll send you a link to install it.</li>
-      <li><b>Switch on approval</b> for that first action, then see how often your agent actually asks.</li>
-      <li class="try__help">Stuck on a step? Email <a href="mailto:connect@agentaction.online">connect@agentaction.online</a> and we'll walk you through it.</li>
+      <li><b>Sign up</b> at <a href="https://portal.agentaction.online/register">portal.agentaction.online</a>. Already have an account? <a href="https://portal.agentaction.online/login">Log in</a>.</li>
+      <li><b>Connect the apps your agent uses</b> &mdash; Gmail, Google Calendar and more, with new ones being added.</li>
+      <li><b>Pair your phone.</b> Open <b>Approvals</b>, install the app, and scan the code on screen. <a href="https://github.com/avijeett007/agentaction/releases/latest">Download for Android</a>; on iPhone, ask us for a TestFlight invitation.</li>
+      <li><b>Choose which actions need you.</b> Mark the risky ones &mdash; sending, paying, deleting. Everything else keeps running untouched.</li>
+      <li><b>Connect your agent.</b> Open <b>MCP Access</b>, create a token, and point your agent at the MCP server URL shown there.</li>
+      <li class="try__help">Stuck on a step? Email <a href="mailto:connect@agentaction.online">connect@agentaction.online</a> and we&rsquo;ll walk you through it.</li>
     </ol>
+  </div>
+</section>
+
+<!-- ===================================================== connecting an agent -->
+<section class="band" id="connect" aria-labelledby="connect-title">
+  <div class="shell">
+    <h2 id="connect-title" class="start__title">Connecting your agent</h2>
+    <p class="connect__lead">AgentAction speaks <b>MCP</b>, the protocol agents already use to reach tools. Anything that can talk to an MCP server can use it &mdash; Claude, Cursor, n8n, your own code. You are not adopting a framework; you are changing which address your agent&rsquo;s tools live behind.</p>
+
+    <div class="connect__grid">
+      <div class="connect__col">
+        <h3>What you point it at</h3>
+        <p>Your own URL and token appear on the <b>MCP Access</b> page. They look like this:</p>
+        <pre class="connect__code"><code>url:   https://gateway.agentaction.online/api/mcp
+token: your token from MCP Access</code></pre>
+        <p>Send the token as a bearer header. Your agent then sees your connected apps as ordinary tools &mdash; the same names, the same arguments.</p>
+      </div>
+
+      <div class="connect__col">
+        <h3>What changes when it runs</h3>
+        <p>For an action you did <em>not</em> mark, nothing changes at all. It runs, exactly as before.</p>
+        <p>For one you did, the tool call comes back <code>APPROVAL_REQUIRED</code> with a four-digit code instead of running, and the request appears on your phone. Approve it and your agent calls the same tool again, once, and it goes through. Refuse it, or leave it, and nothing happens.</p>
+        <p class="connect__note">Approving never runs anything by itself. It unlocks a single retry your agent has to make &mdash; so nothing executes behind your back, and your agent sees the outcome.</p>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -542,6 +569,8 @@
       <a href="#who-its-for">Who it's for</a>
       <a href="#security">Security</a>
       <a href="#questions">Questions</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
       <a href="https://github.com/avijeett007/agentaction">GitHub</a>
     </nav>
     <div>
@@ -552,5 +581,34 @@
   </div>
   <div class="shell footer__legal">© 2026 Kno2gether Labs Ltd. Source code under the Apache 2.0 licence.</div>
 </footer>
+
+<!-- Signup. Posts to this site's own /api/signup, which proxies to the portal's
+     experience-lead endpoint so the customer arrives WITH the apps and credits
+     the experience is configured to give. Linking straight to /register was the
+     bug: that path provisions none of it. -->
+<div class="signup" id="signup" hidden aria-hidden="true">
+  <div class="signup__backdrop" data-signup-close></div>
+  <div class="signup__panel" role="dialog" aria-modal="true" aria-labelledby="signup-title">
+    <button class="signup__x" type="button" aria-label="Close" data-signup-close>&times;</button>
+    <h2 class="signup__title" id="signup-title">Get started</h2>
+    <p class="signup__lead">Your email is all we need. No card.</p>
+
+    <form class="signup__form" id="signup-form" novalidate>
+      <label class="signup__label" for="signup-email">Your email</label>
+      <input class="signup__input" id="signup-email" name="email" type="email"
+             autocomplete="email" placeholder="you@company.com" required>
+      <p class="signup__error" id="signup-error" role="alert" hidden></p>
+      <button class="btn btn--primary signup__submit" type="submit" id="signup-submit">Create my account</button>
+    </form>
+
+    <div class="signup__done" id="signup-done" hidden>
+      <p class="signup__donetitle">Check your email</p>
+      <p>We have sent you a link to finish setting up your account.</p>
+    </div>
+
+    <p class="signup__alt">Already have an account?
+      <a href="https://portal.agentaction.online/login">Sign in</a></p>
+  </div>
+</div>
 </body>
 </html>

@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy | AgentAction</title>
+<meta name="description" content="What the AgentAction app collects, what it does not, and what leaves your phone. No account, no tracking, and your approval key never leaves the device.">
+<link rel="canonical" href="https://agentaction.online/privacy">
+<meta name="theme-color" content="#14213D">
+<meta name="robots" content="index, follow">
+
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://agentaction.online/privacy">
+<meta property="og:site_name" content="AgentAction">
+<meta property="og:locale" content="en_GB">
+<meta property="og:title" content="AgentAction privacy policy">
+<meta property="og:description" content="What leaves your phone, what never does, and how to get it deleted.">
+
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/styles.css">
+<style>
+/* Scoped to the legal pages: long-form prose the marketing page has no use for. */
+.legal { padding: 4rem 0 5rem; }
+.legal__shell { max-width: 46rem; }
+.legal h1 { margin: 0 0 .5rem; }
+.legal .legal__meta { color: var(--muted); font-size: .95rem; margin: 0 0 2.5rem; }
+.legal h2 { margin: 2.75rem 0 .75rem; font-size: 1.3rem; }
+.legal h3 { margin: 1.75rem 0 .5rem; font-size: 1.05rem; }
+.legal p, .legal li { color: var(--muted); line-height: 1.7; }
+.legal ul { padding-left: 1.2rem; }
+.legal li { margin: .4rem 0; }
+.legal table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.5rem; font-size: .95rem; }
+.legal th, .legal td { text-align: left; padding: .6rem .75rem; border-bottom: 1px solid rgba(255,255,255,.12); vertical-align: top; color: var(--muted); }
+.legal th { color: inherit; font-weight: 600; }
+.legal__lead { font-size: 1.1rem; line-height: 1.7; }
+.legal__note { border-left: 3px solid var(--approve); padding: .25rem 0 .25rem 1rem; margin: 1.5rem 0; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="shell topbar__inner">
+    <a class="wordmark" href="/" aria-label="AgentAction home">
+      <svg class="wordmark__mark" viewBox="0 0 128 128" aria-hidden="true"><path d="M86 20H40a20 20 0 0 0-20 20v48a20 20 0 0 0 20 20h48a20 20 0 0 0 20-20V60" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round"/><path d="M46 66l18 18L110 24" fill="none" stroke="var(--approve)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>AgentAction</span>
+    </a>
+    <nav class="topnav" aria-label="Main">
+      <a href="/#how-it-works">How it works</a>
+      <a href="/#security">Security</a>
+      <a href="/terms">Terms</a>
+      <a href="https://github.com/avijeett007/agentaction">GitHub</a>
+    </nav>
+    <a class="topnav__login" href="https://portal.agentaction.online/login">Log in</a>
+    <a class="btn btn--primary btn--small" href="https://portal.agentaction.online/register">Try AgentAction</a>
+  </div>
+</header>
+
+<main id="main" class="legal">
+<div class="shell legal__shell">
+
+<h1>Privacy policy</h1>
+<p class="legal__meta">For the AgentAction mobile app and this website. Last updated 25 September 2026.</p>
+
+<p class="legal__lead">AgentAction asks you to approve or refuse things an AI assistant wants to do.
+To do that it needs almost nothing about you. There is no account, no sign-up, no
+advertising and no tracking, and the key that signs your decisions never leaves
+your phone.</p>
+
+<p>This policy explains exactly what does leave your phone, why, and how to get rid
+of it. It is written to be read, not to be survived.</p>
+
+<h2>Who is responsible for your data</h2>
+
+<p>It depends on which version you are using, and the difference is real rather
+than legal decoration.</p>
+
+<h3>If you were given a pairing code by a company</h3>
+<p>That company decides which of its assistant's actions need approval, and it
+receives your decisions. It is the data controller. AgentAction is the software
+they use. Ask them about their own privacy practices — we cannot answer for them.</p>
+
+<h3>If you use the hosted service run by Kno2gether Labs</h3>
+<p>Kno2gether Labs Ltd is the data controller for the approval service itself, and
+processes the information below on that company's behalf.</p>
+
+<h3>If someone runs AgentAction on their own servers</h3>
+<p>AgentAction is open source, and anyone can run the approval server themselves.
+When they do, they hold the data and they are the controller. Kno2gether Labs
+receives nothing.</p>
+
+<h2>What leaves your phone</h2>
+
+<p>This is the complete list.</p>
+
+<table>
+  <thead><tr><th>What</th><th>Why</th><th>How long</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A public key</td>
+      <td>So a decision can be proved to have come from your phone and not from someone else. It is the public half only — see below.</td>
+      <td>Until you unpair</td>
+    </tr>
+    <tr>
+      <td>A notification token</td>
+      <td>So your phone can be buzzed when something needs approving. It is issued by Apple or Google, identifies the app installation rather than you, and changes when you reinstall.</td>
+      <td>Until you unpair or reinstall</td>
+    </tr>
+    <tr>
+      <td>The name you give this phone</td>
+      <td>So whoever paired with you can tell their devices apart in a list. You choose it, and "Work phone" is as good a choice as your own name.</td>
+      <td>Until you unpair</td>
+    </tr>
+    <tr>
+      <td>Your decisions</td>
+      <td>Approve or refuse, and when. This is the point of the product: without a record of the decision, the action cannot be allowed to happen.</td>
+      <td>Kept as an audit record</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="legal__note">
+<p>That is all of it. Not your name, not your email address, not your phone number,
+not your location, not your contacts, not an advertising identifier.</p>
+</div>
+
+<h2>What never leaves your phone</h2>
+
+<ul>
+  <li><strong>Your approval key.</strong> It is created on the device, held in the
+    phone's secure hardware, and released only after Face ID, a fingerprint or your
+    passcode. It cannot be exported, and we never see it.</li>
+  <li><strong>Your face and your fingerprint.</strong> The check is done by the
+    phone's operating system. The app is told only whether it succeeded. Biometric
+    data is never sent anywhere and the app cannot read it.</li>
+  <li><strong>Anything the camera sees.</strong> The camera opens once, to read a
+    pairing code. Nothing is photographed, stored or uploaded.</li>
+</ul>
+
+<h2>What the app can see on your phone</h2>
+
+<p>Only what you are being asked to approve. It cannot read your messages, your
+photos, your files or anything else on the device.</p>
+
+<p>The text describing a request comes from whoever set the assistant up, and is
+shown as plain text exactly as they wrote it. They can see whether you approved,
+refused, or let it expire.</p>
+
+<h2>Permissions, and why each one exists</h2>
+
+<table>
+  <thead><tr><th>Permission</th><th>What it is for</th></tr></thead>
+  <tbody>
+    <tr><td>Camera</td><td>Reading a pairing code, once. Declining it means pairing by typing a code instead.</td></tr>
+    <tr><td>Face ID, fingerprint or passcode</td><td>Releasing your approval key, every single time you approve. It cannot be turned off.</td></tr>
+    <tr><td>Notifications</td><td>Telling you something is waiting. Declining it costs you the buzz, not the request: the app checks for itself every fifteen seconds.</td></tr>
+  </tbody>
+</table>
+
+<h2>Tracking and advertising</h2>
+
+<p>There is none. No analytics in the app, no advertising identifier, no third-party
+trackers, no profiling, no automated decision-making about you, and nothing is
+sold or shared with anyone for their own purposes.</p>
+
+<p>This website sets no cookies and runs no analytics.</p>
+
+<h2>Where data is held</h2>
+
+<p>For the hosted service, inside the European Economic Area: the database is in
+Germany and the servers are in France.</p>
+
+<p>Notification tokens are handed to Apple's and Google's push services so the alert
+can actually be delivered, and those services operate internationally. Where a
+transfer outside the UK or EEA is involved, it is covered by the safeguards such
+transfers require.</p>
+
+<h2>Your rights</h2>
+
+<p>Under UK GDPR and the GDPR you can ask for a copy of what is held about you, ask
+for it to be corrected or deleted, object to its processing, or ask for it to be
+restricted. The fastest route to deletion is in your hands:</p>
+
+<div class="legal__note">
+<p><strong>Unpair the phone.</strong> Open Accounts in the app and unpair. Your key,
+your device name and your notification token stop being usable immediately. Your
+past decisions remain as an audit record, because a record of who approved a
+payment is the thing that makes the approval worth anything.</p>
+</div>
+
+<p>If a company paired with you, ask them — they hold it. For the hosted service,
+write to <a href="mailto:connect@agentaction.online">connect@agentaction.online</a>
+and we will respond within one month. If you are not satisfied, you can complain to
+the Information Commissioner's Office at <a href="https://ico.org.uk">ico.org.uk</a>.</p>
+
+<h2>Children</h2>
+
+<p>AgentAction is a tool for people running or supervising software at work. It is
+not designed for or directed at children, and we do not knowingly collect anything
+about them.</p>
+
+<h2>Security</h2>
+
+<p>Decisions are signed on the device with a key held in secure hardware. Every
+approval requires biometrics or a passcode. Every request carries a four-digit code
+shown both to you and to whoever asked, so a request that did not come from them
+can be spotted. A request that is not answered expires and is refused by default.</p>
+
+<p>The source code is public at
+<a href="https://github.com/avijeett007/agentaction">github.com/avijeett007/agentaction</a>,
+so none of this has to be taken on trust.</p>
+
+<h2>Changes</h2>
+
+<p>If this policy changes in a way that affects what is collected, the date at the
+top changes and the app will say so before you next approve anything.</p>
+
+<h2>Contact</h2>
+
+<p>Kno2gether Labs Ltd, a company registered in England and Wales.<br>
+<a href="mailto:connect@agentaction.online">connect@agentaction.online</a></p>
+
+</div>
+</main>
+
+<footer class="footer">
+  <div class="shell footer__grid">
+    <div>
+      <a class="wordmark wordmark--light" href="/" aria-label="AgentAction home">
+        <svg class="wordmark__mark" viewBox="0 0 128 128" aria-hidden="true"><path d="M86 20H40a20 20 0 0 0-20 20v48a20 20 0 0 0 20 20h48a20 20 0 0 0 20-20V60" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round"/><path d="M46 66l18 18L110 24" fill="none" stroke="#2FD98B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>AgentAction</span>
+      </a>
+      <p>A Kno2gether Labs product.</p>
+    </div>
+    <nav aria-label="Footer">
+      <a href="/#how-it-works">How it works</a>
+      <a href="/#security">Security</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="https://github.com/avijeett007/agentaction">GitHub</a>
+    </nav>
+    <div>
+      <p><a href="mailto:connect@agentaction.online">connect@agentaction.online</a></p>
+      <p>Enterprise and setup: <a href="https://sonti.io">Sonti</a></p>
+      <p>Built by <a href="https://www.linkedin.com/in/avijit-sarkar-aabb2524/">Avijit Sarkar</a>.</p>
+    </div>
+  </div>
+  <div class="shell footer__legal">© 2026 Kno2gether Labs Ltd. Source code under the Apache 2.0 licence.</div>
+</footer>
+</body>
+</html>

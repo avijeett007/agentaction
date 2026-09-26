@@ -95,4 +95,105 @@
       io.observe(demo);
     }
   }
+
+  /* ---- signup dialog ----------------------------------------------------
+   *
+   * Every "try / sign up" CTA keeps its href to /register, so with this file
+   * blocked the page still works — it just takes the slower path. With JS, the
+   * click is intercepted and the email goes to /api/signup, which provisions
+   * the customer WITH the experience's apps and free credits. Linking straight
+   * to /register was the bug: that route grants neither.
+   */
+  var signup = document.getElementById('signup');
+  if (signup) {
+    var form = document.getElementById('signup-form');
+    var input = document.getElementById('signup-email');
+    var errorEl = document.getElementById('signup-error');
+    var submitEl = document.getElementById('signup-submit');
+    var doneEl = document.getElementById('signup-done');
+    var lastFocused = null;
+
+    var showError = function (message) {
+      errorEl.textContent = message;
+      errorEl.hidden = false;
+    };
+    var clearError = function () {
+      errorEl.textContent = '';
+      errorEl.hidden = true;
+    };
+
+    var open = function () {
+      lastFocused = document.activeElement;
+      clearError();
+      form.hidden = false;
+      doneEl.hidden = true;
+      signup.hidden = false;
+      signup.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      input.focus();
+    };
+    var close = function () {
+      signup.hidden = true;
+      signup.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      if (lastFocused && lastFocused.focus) lastFocused.focus();
+    };
+
+    Array.prototype.forEach.call(document.querySelectorAll('[data-signup]'), function (el) {
+      el.addEventListener('click', function (e) {
+        // Let a modified click through: someone opening in a new tab means it.
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        open();
+      });
+    });
+    Array.prototype.forEach.call(signup.querySelectorAll('[data-signup-close]'), function (el) {
+      el.addEventListener('click', close);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !signup.hidden) close();
+    });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var email = (input.value || '').trim().toLowerCase();
+      // novalidate on the form: the type still gives phones the right keyboard,
+      // but the browser's bubble is suppressed so every message here is ours.
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+        showError('That does not look like an email address.');
+        input.focus();
+        return;
+      }
+      clearError();
+      submitEl.disabled = true;
+      submitEl.textContent = 'Setting up\u2026';
+
+      fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: email })
+      })
+        .then(function (res) {
+          return res.json().catch(function () { return null; }).then(function (data) {
+            return { ok: res.ok, data: data };
+          });
+        })
+        .then(function (r) {
+          if (!r.ok || !r.data || !r.data.success) {
+            showError((r.data && r.data.error) || 'That did not go through. Please try again.');
+            return;
+          }
+          form.hidden = true;
+          doneEl.hidden = false;
+        })
+        .catch(function () {
+          showError('No connection. Check your network and try again.');
+        })
+        .then(function () {
+          submitEl.disabled = false;
+          submitEl.textContent = 'Create my account';
+        });
+    });
+  }
+
 })();

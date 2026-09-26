@@ -38,9 +38,9 @@ directory and predates the rest.
 | Item | Text |
 |---|---|
 | Name | AgentAction — one word, two capitals. Not "Agent Action", not "agentaction" outside a URL or a package name. |
-| Slogan | **Agents act. Your users decide.** |
+| Slogan | **Agents act. You decide.** |
 | Descriptor | Human approval for agent tool calls. |
-| Short form | Your users decide. |
+| Short form | You decide. |
 
 ## Palette
 

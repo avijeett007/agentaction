@@ -18,6 +18,18 @@ GoogleService-Info.plist
 **/GoogleService-Info.plist
 *service-account*.json
 *-firebase-adminsdk-*.json
+# Google names a downloaded service-account key <project>-<hash>.json, which the
+# rule above does NOT match — that is how a Play release key with production
+# permissions came to be sitting untracked-but-committable in app/ (2026-09-25).
+# Match the shape Google actually produces, not the name we wish it used.
+*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json
+play-service-account*.json
+gcp-*.json
 
 # Which EAS account this checkout builds against — an installation detail.
 eas.local.json
+
+# Wrangler's local state. `cache/wrangler-account.json` carries the Cloudflare
+# account id, and this repository is public.
+.wrangler/
+.DS_Store

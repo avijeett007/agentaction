@@ -88,6 +88,30 @@ if git ls-tree -r --name-only "$TREE" | grep -E '\.db(-journal)?$'; then
   FAIL=1
 fi
 
+# A Google service-account key by CONTENT, not by name.
+#
+# The list above names files. Google names a downloaded key <project>-<hash>.json
+# and Amazon, Azure and the rest all differ, so a name list can only ever catch
+# the ones someone thought of. On 2026-09-25 a Play key with release-to-production
+# permissions sat in app/ named knotie-ai-pro-953505d371e7.json, matched by none
+# of the rules that existed to stop exactly that.
+#
+# These two markers appear in every Google service-account key and in almost
+# nothing else, so the check is cheap and hard to dodge by renaming.
+while IFS= read -r path; do
+  case "$path" in
+    *.json)
+      BLOB="$(git show "$TREE:$path" 2>/dev/null || true)"
+      case "$BLOB" in
+        *'"type"'*'"service_account"'*|*'-----BEGIN PRIVATE KEY-----'*)
+          echo "publish: $path looks like a service-account key (matched on contents)" >&2
+          FAIL=1
+          ;;
+      esac
+      ;;
+  esac
+done < <(git ls-tree -r --name-only "$TREE")
+
 if command -v ggshield >/dev/null 2>&1; then
   SCAN_DIR=$(mktemp -d)
   git archive "$TREE" | tar -x -C "$SCAN_DIR"

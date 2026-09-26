@@ -51,11 +51,18 @@ site/
 ```
 
 Nothing is loaded from a third party at runtime: no analytics, no cookies, no
-`connect-src`. `src/_headers` sets a strict Content-Security-Policy
+third-party `connect-src`. `src/_headers` sets a strict Content-Security-Policy
 (`default-src 'none'`, everything same-origin, no inline script or style), HSTS,
 `nosniff`, `Referrer-Policy: no-referrer`, and a `Permissions-Policy` denying
-camera, microphone, geolocation and payment. If the policy ever needs
-loosening, something has been added that does not belong on this site.
+camera, microphone, geolocation and payment.
+
+`connect-src` is `'self'`, for the one call the signup dialog makes to
+`/api/signup` on this same origin. It was `'none'` until then, and the change to
+`'self'` is the only loosening the site has ever needed — if it ever needs to
+name a third-party host, something has been added that does not belong here.
+The build audit derives what the page needs from the page and fails if the
+policy does not cover it, because a CSP mistake is invisible to `curl` and to
+the worker tests: only a browser enforces one.
 
 ## The hero demo
 

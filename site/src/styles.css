@@ -110,9 +110,23 @@ h1, h2, h3 { color: var(--ink); margin: 0; }
 .topnav a { color: var(--text); text-decoration: none; font-size: 0.97rem; font-weight: 520; }
 .topnav a:hover { color: var(--ink); text-decoration: underline; }
 .topbar .btn { margin-left: auto; }
+
+/* "Log in" sits beside the sign-up button: someone who already has an account
+ * should not have to land on a register page to find the way in.
+ * Below 900px the nav is hidden, so this link carries the margin-left:auto that
+ * pushes the pair right; above it the nav already does, and a second auto would
+ * split the free space and strand the nav mid-bar. Hidden on the narrowest
+ * screens, where the wordmark and the button already fill the row — the body
+ * copy offers a log-in link too. */
+.topnav__login { display: none; margin-left: auto; color: var(--text); text-decoration: none; font-size: 0.97rem; font-weight: 520; white-space: nowrap; }
+.topnav__login:hover { color: var(--ink); text-decoration: underline; }
+.topnav__login + .btn { margin-left: 14px; }
+@media (min-width: 480px) { .topnav__login { display: inline-flex; align-items: center; } }
+
 @media (min-width: 900px) {
   .topnav { display: flex; }
   .topbar .btn { margin-left: 8px; }
+  .topnav__login { margin-left: 0; }
 }
 
 /* ---- hero ---------------------------------------------------------------- */
@@ -448,3 +462,38 @@ h1, h2, h3 { color: var(--ink); margin: 0; }
 
 .grid-wrap { position: relative; }
 .holds th, .holds td { position: relative; }
+
+/* ---- connecting an agent -------------------------------------------------- */
+
+.connect__lead { max-width: 52rem; margin: 0 0 32px; }
+.connect__grid { display: grid; gap: 32px; }
+.connect__col h3 { margin: 0 0 12px; font-size: 1.12rem; }
+.connect__col p { margin: 0 0 14px; }
+.connect__code { background: var(--app-ink); color: var(--app-text); border: 1px solid var(--app-line); border-radius: 12px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 0.88rem; line-height: 1.7; margin: 0 0 14px; }
+.connect__code code { background: none; color: inherit; padding: 0; }
+.connect__note { border-left: 3px solid var(--approve); padding-left: 14px; }
+@media (min-width: 860px) {
+  .connect__grid { grid-template-columns: 1fr 1fr; gap: 48px; }
+}
+
+/* ---- signup dialog -------------------------------------------------------
+ * Authored in the page rather than built by JS, so it is in the HTML a screen
+ * reader and a crawler both see. Hidden with [hidden] until opened. */
+
+.signup[hidden] { display: none; }
+.signup { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.signup__backdrop { position: absolute; inset: 0; background: rgba(10, 14, 26, 0.72); backdrop-filter: blur(2px); }
+.signup__panel { position: relative; width: 100%; max-width: 27rem; background: var(--white); border: 1px solid var(--line); border-radius: 16px; padding: 28px; box-shadow: 0 24px 60px rgba(10, 14, 26, 0.28); }
+.signup__x { position: absolute; top: 12px; right: 14px; background: none; border: 0; font-size: 1.6rem; line-height: 1; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+.signup__x:hover { color: var(--ink); }
+.signup__title { margin: 0 0 6px; font-size: 1.35rem; }
+.signup__lead { margin: 0 0 18px; color: var(--muted); font-size: 0.95rem; }
+.signup__label { display: block; font-size: 0.9rem; margin-bottom: 6px; }
+.signup__input { width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--paper); color: var(--ink); }
+.signup__input:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+.signup__error { color: var(--deny); font-size: 0.9rem; margin: 10px 0 0; }
+.signup__error[hidden] { display: none; }
+.signup__submit { width: 100%; margin-top: 16px; justify-content: center; }
+.signup__done[hidden] { display: none; }
+.signup__donetitle { font-weight: 640; color: var(--approve); margin: 0 0 6px; }
+.signup__alt { margin: 18px 0 0; font-size: 0.9rem; color: var(--muted); }

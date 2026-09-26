@@ -165,7 +165,11 @@ async function audit(distFiles) {
   const refs = [...html.matchAll(/(?:href|src)="(\/[^"#]+)"/g)].map((m) => m[1]);
   const built = new Set(distFiles.map((f) => '/' + relative(DIST, f).split('\\').join('/')));
   for (const ref of new Set(refs)) {
-    if (!built.has(ref)) problems.push(`index.html: local link has no file — ${ref}`);
+    // Cloudflare's static assets serve /privacy from privacy.html, so an
+    // extensionless link is correct rather than dead. Model that here, or the
+    // audit rejects exactly the clean URLs we want to publish.
+    const resolves = built.has(ref) || built.has(`${ref}.html`) || built.has(`${ref}/index.html`);
+    if (!resolves) problems.push(`index.html: local link has no file — ${ref}`);
   }
 
   // Every in-page anchor must have a target.
@@ -187,6 +191,42 @@ async function audit(distFiles) {
     }
   }
 
+  // The CSP has to permit what the page actually does.
+  //
+  // This check exists because of a real escape. `connect-src 'none'` was
+  // correct for years — the site made no network calls at all. Adding the
+  // signup fetch made it wrong, and nothing caught it: curl and the worker
+  // tests never see a CSP, because only a browser enforces one. The endpoint
+  // answered perfectly while every visitor got "No connection".
+  //
+  // So: derive what the page needs from the page, and compare.
+  const headers = await readFile(join(DIST, '_headers'), 'utf8');
+  const csp = (headers.match(/Content-Security-Policy:([^\n]*)/) ?? [, ''])[1];
+  const directive = (name) => {
+    const m = csp.match(new RegExp(`(?:^|;)\\s*${name}\\s+([^;]+)`));
+    return m ? m[1].trim() : null;
+  };
+  const pageScripts = [js, ...(await Promise.all(
+    distFiles.filter((f) => f.endsWith('.js') && !f.endsWith('main.js')).map((f) => readFile(f, 'utf8')),
+  ))].join('\n');
+
+  if (/\bfetch\(|XMLHttpRequest|navigator\.sendBeacon|new WebSocket|new EventSource/.test(pageScripts)) {
+    const connect = directive('connect-src');
+    if (!connect || connect === "'none'") {
+      problems.push(
+        "_headers: the page makes network calls but connect-src is " +
+        `${connect ?? 'unset (falls back to default-src)'} — every request will be blocked in a browser`,
+      );
+    }
+  }
+
+  // A <form> that is not submitted by JavaScript needs somewhere to post.
+  // Ours is intercepted, so form-action stays locked; flag it only if an
+  // action attribute appears, which means a real submit is intended.
+  if (/<form[^>]+action=/.test(html) && directive('form-action') === "'none'") {
+    problems.push("_headers: a form has an action but form-action is 'none' — the submit will be blocked");
+  }
+
   // The vendored library keeps its licence, or it does not ship.
   const vendor = distFiles.filter((f) => f.includes('vendor'));
   for (const v of vendor) {
@@ -200,7 +240,7 @@ async function audit(distFiles) {
     console.error('\nBUILD AUDIT FAILED\n' + problems.map((p) => '  ✗ ' + p).join('\n') + '\n');
     return false;
   }
-  log('audit passed: no secrets, no internal hostnames, no dead local links');
+  log('audit passed: no secrets, no internal hostnames, no dead local links, CSP covers what the page does');
 
   const kb = async (p) => (await stat(join(DIST, p))).size / 1024;
   const first = ['index.html', 'styles.css', 'main.js', 'assets/fonts/archivo-latin.woff2', 'assets/favicon.svg'];
